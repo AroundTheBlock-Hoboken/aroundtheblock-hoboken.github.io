@@ -3,10 +3,10 @@
 window.ATB_CONFIG = {
   // Paste the "Publish to web" CSV link of your Google Sheet here (see README).
   // Leave it empty to show the example listings below.
-  sheetCsvUrl: "",
+  sheetCsvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTljWk3QbahmcQIiYL6KfGSeneKfuciq14dDpaZDrhDbunlt7Sd9RKa3-WwiBv7jj38-vHOcvPMpfd9/pub?gid=0&single=true&output=csv",
 
   // Where businesses email you to post or remove a job.
-  contactEmail: "aroundtheblock@example.com",
+  contactEmail: "jhaase@stevens.edu",
 
   // Shown only while sheetCsvUrl is empty.
   exampleJobs: [
