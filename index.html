@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Around the Block | Part-time jobs near Stevens</title>
+  <meta name="description" content="Part-time jobs at Hoboken coffee shops, restaurants and stores, a short walk from Stevens.">
+  <link rel="icon" href="mascot.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip" href="#jobs">Skip to job listings</a>
+
+  <header class="site-header">
+    <div class="wrap header-row">
+      <a href="./" class="brand" aria-label="Around the Block home">
+        <img src="logo.png" alt="Around the Block" class="logo">
+      </a>
+      <nav aria-label="Main">
+        <a href="#jobs">Jobs</a>
+        <a href="#how">How it works</a>
+        <a href="#businesses">For businesses</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="wrap">
+        <h1>Part-time jobs, <em>around the block</em> from Stevens</h1>
+        <p class="lead">Coffee shops, restaurants and stores in Hoboken that want to hire Stevens students. Shifts that fit around your classes, a few minutes' walk from campus.</p>
+        <a class="btn" href="#jobs">See open jobs</a>
+      </div>
+    </section>
+
+    <section id="jobs" class="section" aria-labelledby="jobs-title">
+      <div class="wrap">
+        <h2 id="jobs-title" class="section-title">Open jobs</h2>
+
+        <div class="filters" role="search">
+          <label class="field">
+            <span>Search</span>
+            <input id="q" type="search" placeholder="Barista, weekends, Washington St..." autocomplete="off">
+          </label>
+          <label class="field">
+            <span>Type</span>
+            <select id="type"><option value="">All types</option></select>
+          </label>
+        </div>
+
+        <p id="status" class="status" role="status" aria-live="polite">Loading jobs…</p>
+        <div id="list" class="grid"></div>
+      </div>
+    </section>
+
+    <section id="how" class="section alt" aria-labelledby="how-title">
+      <div class="wrap">
+        <h2 id="how-title" class="section-title">How it works</h2>
+        <ol class="steps">
+          <li><strong>Browse</strong><span>Every listing shows the hours, pay and how far it is from campus.</span></li>
+          <li><strong>Apply</strong><span>Contact the business directly to set up an interview. No account needed.</span></li>
+          <li><strong>Work</strong><span>Earn money a few minutes from class, on a schedule that works for you.</span></li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="businesses" class="section" aria-labelledby="biz-title">
+      <div class="wrap biz">
+        <img src="mascot.png" alt="" class="mascot" width="200">
+        <div>
+          <h2 id="biz-title" class="section-title left">Hiring? Post a job for free</h2>
+          <p>Reply to our weekly email, or email us with three things:</p>
+          <ul class="ticks">
+            <li>The role and hours</li>
+            <li>The pay</li>
+            <li>Who students should contact to set up an interview</li>
+          </ul>
+          <p>Filled the role? Just reply "remove" and we'll take it down.</p>
+          <a class="btn" id="contact-btn" href="mailto:">Email us</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>Around the Block · A Stevens Institute of Technology student project · Hoboken, NJ</p>
+    </div>
+  </footer>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

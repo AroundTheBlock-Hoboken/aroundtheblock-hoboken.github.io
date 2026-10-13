@@ -1,0 +1,115 @@
+/* Around the Block — colors and type */
+:root {
+  --bg: #F9F6F5;
+  --card: #FFFFFF;
+  --ink: #1F2447;        /* navy text */
+  --muted: #5E5A66;
+  --coral: #DE9585;      /* brand coral (logo) */
+  --coral-dark: #A9503F; /* buttons: passes contrast with white text */
+  --sage: #8FA77E;
+  --sage-light: #E7EEE2;
+  --line: #E4DCD8;
+  --radius: 18px;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "EB Garamond", Georgia, serif;
+  font-size: 1.2rem;
+  line-height: 1.5;
+}
+img { max-width: 100%; height: auto; }
+a { color: var(--coral-dark); }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+
+.skip { position: absolute; left: -999px; }
+.skip:focus { left: 16px; top: 16px; background: var(--ink); color: #fff; padding: 8px 14px; border-radius: 8px; z-index: 10; }
+:focus-visible { outline: 3px solid var(--sage); outline-offset: 3px; }
+
+/* Header */
+.site-header { background: var(--bg); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5; }
+.header-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 8px; padding-bottom: 8px; }
+.logo { height: 64px; width: auto; display: block; }
+nav { display: flex; gap: 22px; flex-wrap: wrap; }
+nav a { color: var(--ink); text-decoration: none; font-weight: 600; }
+nav a:hover { color: var(--coral-dark); }
+
+/* Hero */
+.hero { padding: 72px 0 56px; text-align: center; }
+.hero h1 { font-size: clamp(2.2rem, 5vw, 3.6rem); line-height: 1.1; margin: 0 0 16px; font-weight: 700; }
+.hero h1 em { color: var(--coral-dark); }
+.lead { max-width: 620px; margin: 0 auto 28px; color: var(--muted); font-size: 1.3rem; }
+
+.btn {
+  display: inline-block; background: var(--coral-dark); color: #fff; text-decoration: none;
+  font-weight: 700; padding: 12px 30px; border-radius: 999px; border: 0; font: inherit; font-weight: 700; cursor: pointer;
+}
+.btn:hover { background: #8E4033; }
+
+/* Sections */
+.section { padding: 56px 0; }
+.section.alt { background: var(--sage-light); }
+.section-title {
+  text-align: center; font-style: italic; font-weight: 700; font-size: 2rem;
+  margin: 0 0 28px; padding-bottom: 8px; border-bottom: 1.5px solid var(--ink);
+}
+.section-title.left { text-align: left; }
+
+/* Filters */
+.filters { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+.field { display: flex; flex-direction: column; font-weight: 600; font-size: 1rem; flex: 1 1 240px; }
+.field input, .field select {
+  font: inherit; font-weight: 400; padding: 10px 14px; border: 1.5px solid var(--line);
+  border-radius: 12px; background: #fff; color: var(--ink);
+}
+.status { color: var(--muted); margin: 0 0 18px; }
+
+/* Job cards */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 22px; }
+.card {
+  background: var(--card); border: 1.5px solid var(--line); border-radius: var(--radius);
+  padding: 24px; display: flex; flex-direction: column; box-shadow: 0 2px 6px rgba(31, 36, 71, 0.06);
+}
+.card h3 { margin: 0; font-size: 1.6rem; line-height: 1.2; }
+.card .where { margin: 4px 0 14px; color: var(--muted); font-style: italic; }
+.card .meta { margin: 0 0 4px; }
+.card .pay { font-weight: 700; }
+.card .tag {
+  align-self: flex-start; background: var(--sage-light); color: #3F5434; border-radius: 999px;
+  padding: 2px 12px; font-size: 0.95rem; margin-bottom: 12px;
+}
+.card .btn { margin-top: auto; text-align: center; }
+.card .spacer { flex: 1; min-height: 14px; }
+.card .posted { color: var(--muted); font-size: 0.95rem; margin: 10px 0 0; text-align: center; }
+.empty { text-align: center; color: var(--muted); grid-column: 1 / -1; }
+
+/* How it works */
+.steps { list-style: none; counter-reset: s; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 22px; }
+.steps li { counter-increment: s; background: #fff; border-radius: var(--radius); padding: 24px; }
+.steps li::before {
+  content: counter(s); display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 50%;
+  background: var(--coral); color: var(--ink); font-weight: 700; margin-bottom: 10px;
+}
+.steps strong { display: block; font-size: 1.4rem; }
+.steps span { color: var(--muted); }
+
+/* Businesses */
+.biz { display: grid; grid-template-columns: 200px 1fr; gap: 40px; align-items: center; }
+.ticks { padding-left: 1.2em; }
+.ticks li::marker { color: var(--sage); }
+
+/* Footer */
+.site-footer { border-top: 1px solid var(--line); padding: 28px 0; color: var(--muted); text-align: center; font-size: 1rem; }
+
+@media (max-width: 640px) {
+  .header-row { flex-direction: column; }
+  .logo { height: 52px; }
+  .biz { grid-template-columns: 1fr; text-align: center; }
+  .biz .mascot { margin: 0 auto; width: 150px; }
+  .section-title.left { text-align: center; }
+  .ticks { text-align: left; display: inline-block; }
+}
