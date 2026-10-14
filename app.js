@@ -35,6 +35,8 @@
   // [FIXED] "Email us" buttons. They open Outlook (web on computers, the app on phones),
   // and the address is always shown on the page so nobody gets stuck.
   (function () {
+    const rb = $("request-btn");
+    if (rb && cfg.requestFormUrl) { rb.href = cfg.requestFormUrl; rb.hidden = false; }   // [NEW] shows only when a form link is in config.js
     const to = cfg.contactEmail || "";
     const subject = "Post a job on Around the Block";
     const body = "Hello,\n\nWe'd like to post a job on Around the Block.\n\nBusiness name:\nRole:\nHours:\nShort description:\nWho students should contact:\n\nThank you,";

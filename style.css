@@ -159,3 +159,6 @@ dialog.dlg-fallback[open] { position: fixed; top: 50%; left: 50%; transform: tra
 .site { margin: 12px 0 0; }
 .addr-line { margin-top: 14px; font-size: 1rem; color: var(--muted); }
 .addr-line .linklike { margin-left: 6px; }
+.about { max-width: 720px; text-align: center; }
+.about p { font-size: 1.15rem; }
+.biz .btn + .btn { margin-left: 8px; }
