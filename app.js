@@ -100,17 +100,28 @@
     return e;
   }
 
+  // [NEW] Round letter badge (first letter of the business name)
+  function avatar(j) {
+    const a = el("span", "avatar", (j.Business || "?").trim().charAt(0).toUpperCase());
+    a.setAttribute("aria-hidden", "true");
+    return a;
+  }
+
   // ---------- Job card (the clickable summary) ----------
   function card(j) {
     const c = el("article", "card");
-    // [CHANGED] The title is now a link that opens the detail window
+    const top = el("div", "card-top");                       // [CHANGED] badge + title side by side
+    top.appendChild(avatar(j));
+    const titles = el("div", "titles");
     const h = el("h3");
     const a = el("a", "card-link", j.Role || "Open role");
     a.href = "#job=" + j._id;
     h.appendChild(a);
-    c.appendChild(h);
+    titles.appendChild(h);
     const where = [j.Business, j.Location].filter(Boolean).join(", ");
-    if (where) c.appendChild(el("p", "where", where));
+    if (where) titles.appendChild(el("p", "where", where));
+    top.appendChild(titles);
+    c.appendChild(top);
 
     const tags = el("div", "tags");                          // [NEW] tag row
     if (j.Type) tags.appendChild(el("span", "tag", j.Type));
@@ -135,6 +146,7 @@
   function renderDetail(j) {
     dlgBody.replaceChildren();
     const head = el("header", "d-head");
+    head.appendChild(avatar(j));
     const title = el("h2", "", j.Role || "Open role"); title.id = "dialog-title";
     head.appendChild(title);
     const where = [j.Business, j.Location].filter(Boolean).join(", ");
@@ -173,33 +185,14 @@
       const a = el("a", "btn", "Apply on employer site"); a.href = raw; a.target = "_blank"; a.rel = "noopener";
       apply.appendChild(a);
     } else if (email) {
-      // Phones usually have a working email app, so it goes first there.
-      // Computers usually don't, so Gmail and Outlook go first. "Copy message" always works.
-      const L = applyLinks(j, email);
-      const phone = /iPhone|iPad|Android/i.test(navigator.userAgent);
-      apply.appendChild(el("h3", "", "Apply by email"));
+      // [CHANGED] One button. Opens a new email in Outlook on the web (Stevens email).
+      apply.appendChild(el("h3", "", "Interested in this job?"));
+      const go = el("a", "btn", "Apply"); go.href = outlookLink(j, email);
+      go.target = "_blank"; go.rel = "noopener";
+      go.setAttribute("aria-label", "Apply for " + (j.Role || "this job") + " at " + (j.Business || "this business"));
+      apply.appendChild(go);
       apply.appendChild(el("p", "apply-note",
-        "Your message is written for you. Add your details, attach your resume, then send."));
-      const opts = el("div", "apply-opts");
-      const web = [["Gmail", L.gmail, true], ["Outlook", L.outlook, true]];
-      const app = ["Email app", L.mailto, false];
-      (phone ? [app, ...web] : [...web, app]).forEach(([label, href, isWeb], i) => {
-        const b = el("a", "btn" + (i ? " ghost" : ""), label); b.href = href;
-        if (isWeb) { b.target = "_blank"; b.rel = "noopener"; }
-        opts.appendChild(b);
-      });
-      const copy = el("button", "btn ghost", "Copy message"); copy.type = "button";
-      copy.addEventListener("click", () => {
-        (navigator.clipboard ? navigator.clipboard.writeText(L.text) : Promise.reject())
-          .then(() => { copy.textContent = "Copied. Paste it into any email."; })
-          .catch(() => { copy.textContent = "Couldn't copy. Use the address below."; });
-      });
-      opts.appendChild(copy);
-      apply.appendChild(opts);
-      const direct = el("p", "apply-note", "Send to: ");
-      const da = el("a", "", email); da.href = "mailto:" + email;
-      direct.appendChild(da);
-      apply.appendChild(direct);
+        "Opens your Stevens Outlook with the email written for you. Add your details, attach your resume, then send."));
     } else if (applyLink(raw)) {
       const l = applyLink(raw), a = el("a", "btn", l.label); a.href = l.href; apply.appendChild(a);
     } else if (raw) {
@@ -210,9 +203,8 @@
 
   // ---------- [NEW] The email the student sends ----------
   // EDIT THE WORDING HERE. Each line below becomes a line in the email.
-  function applyLinks(j, to) {
+  function outlookLink(j, to) {
     const role = j.Role || "the open role", biz = j.Business || "your business";
-    const subjectText = "Application for " + role + " at " + biz;
     const lines = [
       "Hello,",
       "",
@@ -230,15 +222,10 @@
       "Thank you for your time,",
       "[Your name]"
     ];
-    const subject = encodeURIComponent(subjectText);
-    const body = encodeURIComponent(lines.join("\n"));
-    const t = encodeURIComponent(to);
-    return {
-      mailto: "mailto:" + to + "?subject=" + subject + "&body=" + encodeURIComponent(lines.join("\r\n")),
-      gmail: "https://mail.google.com/mail/?view=cm&fs=1&to=" + t + "&su=" + subject + "&body=" + body,
-      outlook: "https://outlook.office.com/mail/deeplink/compose?to=" + t + "&subject=" + subject + "&body=" + body,
-      text: "To: " + to + "\nSubject: " + subjectText + "\n\n" + lines.join("\n")   // used by "Copy message"
-    };
+    return "https://outlook.office.com/mail/deeplink/compose" +
+      "?to=" + encodeURIComponent(to) +
+      "&subject=" + encodeURIComponent("Application for " + role + " at " + biz) +
+      "&body=" + encodeURIComponent(lines.join("\n"));
   }
 
   // Opens/closes the window based on the URL (#job=...). This makes each job
