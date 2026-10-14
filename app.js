@@ -76,6 +76,11 @@
     if (m) return new Date(+m[3], m[1] - 1, +m[2]).getTime();
     const t = Date.parse(s); return isNaN(t) ? 0 : t;
   }
+  // [NEW] Shows 2026-10-13 as "Oct 13, 2026". Falls back to the original text.
+  function fmtDate(s) {
+    const t = parseDate(s);
+    return t ? new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : s;
+  }
   const walkMinutes = s => { const m = (s || "").match(/\d+/); return m ? +m[0] : 999; };
   const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   const paragraphs = text => text.split(/\n+/).map(p => p.trim()).filter(Boolean);
@@ -114,16 +119,12 @@
     if (j.Hours) c.appendChild(el("p", "meta", j.Hours));
     if (j.Pay) c.appendChild(el("p", "meta pay", j.Pay));
     if (j.Walk) c.appendChild(el("p", "meta", j.Walk + " from campus"));
-    if (j.Description) {                                     // [NEW] short preview
-      const d = j.Description.replace(/\s+/g, " ");
-      c.appendChild(el("p", "preview", d.length > 110 ? d.slice(0, 110).trim() + "…" : d));
-    }
     c.appendChild(el("div", "spacer"));
     const more = el("a", "btn", "View details");             // [CHANGED] main button opens details
     more.href = "#job=" + j._id;
     more.setAttribute("aria-label", "View details: " + (j.Role || "") + " at " + (j.Business || ""));
     c.appendChild(more);
-    if (j.Posted) c.appendChild(el("p", "posted", "Posted " + j.Posted));
+    if (j.Posted) c.appendChild(el("p", "posted", "Posted " + fmtDate(j.Posted)));
 
     // [NEW] Clicking anywhere on the card opens it (links inside still work normally)
     c.addEventListener("click", e => { if (!e.target.closest("a")) location.hash = "job=" + j._id; });
@@ -146,7 +147,7 @@
     // Facts grid: only shows rows that have a value
     const facts = el("dl", "facts");
     [["Hours", j.Hours], ["Pay", j.Pay],
-     ["Distance", j.Walk && j.Walk + " from campus"], ["Posted", j.Posted]].forEach(([k, v]) => {
+     ["Distance", j.Walk && j.Walk + " from campus"], ["Posted", j.Posted && fmtDate(j.Posted)]].forEach(([k, v]) => {
       if (!v) return;
       const box = el("div"); box.appendChild(el("dt", "", k)); box.appendChild(el("dd", "", v));
       facts.appendChild(box);
@@ -172,10 +173,23 @@
       const a = el("a", "btn", "Apply on employer site"); a.href = raw; a.target = "_blank"; a.rel = "noopener";
       apply.appendChild(a);
     } else if (email) {
-      const a = el("a", "btn", "Apply by email"); a.href = applyMailto(j, email);
-      apply.appendChild(a);
+      // [CHANGED] Many computers have no email app set up, so a plain mailto: link
+      // does nothing. We offer Gmail, Outlook and the email app, plus the address.
+      const L = applyLinks(j, email);
+      apply.appendChild(el("h3", "", "Apply by email"));
       apply.appendChild(el("p", "apply-note",
-        "Opens your email app with a message ready to fill in. Add your details, attach your resume, then press send."));
+        "Pick where to write your email. The message is filled in. Add your details, attach your resume, then send."));
+      const opts = el("div", "apply-opts");
+      [["Gmail", L.gmail, true], ["Outlook", L.outlook, true], ["Email app", L.mailto, false]].forEach(([label, href, web]) => {
+        const b = el("a", "btn" + (label === "Email app" ? " ghost" : ""), label); b.href = href;
+        if (web) { b.target = "_blank"; b.rel = "noopener"; }
+        opts.appendChild(b);
+      });
+      apply.appendChild(opts);
+      const direct = el("p", "apply-note", "Or email ");
+      const da = el("a", "", email); da.href = "mailto:" + email;
+      direct.appendChild(da); direct.appendChild(document.createTextNode(" directly."));
+      apply.appendChild(direct);
     } else if (applyLink(raw)) {
       const l = applyLink(raw), a = el("a", "btn", l.label); a.href = l.href; apply.appendChild(a);
     } else if (raw) {
@@ -186,9 +200,9 @@
 
   // ---------- [NEW] The email the student sends ----------
   // EDIT THE WORDING HERE. Each line below becomes a line in the email.
-  function applyMailto(j, to) {
+  function applyLinks(j, to) {
     const role = j.Role || "the open role", biz = j.Business || "your business";
-    const body = [
+    const lines = [
       "Hi,",
       "",
       "I'm a Stevens student and I'm interested in the " + role + " position at " + biz + ".",
@@ -205,9 +219,16 @@
       "",
       "",
       "Sent through Around the Block"
-    ].join("\r\n");
-    return "mailto:" + to + "?subject=" + encodeURIComponent("Application: " + role + " at " + biz) +
-      "&body=" + encodeURIComponent(body);
+    ];
+    const subject = encodeURIComponent("Application: " + role + " at " + biz);
+    const body = encodeURIComponent(lines.join("\n"));
+    const bodyCRLF = encodeURIComponent(lines.join("\r\n"));
+    const t = encodeURIComponent(to);
+    return {
+      mailto: "mailto:" + to + "?subject=" + subject + "&body=" + bodyCRLF,
+      gmail: "https://mail.google.com/mail/?view=cm&fs=1&to=" + t + "&su=" + subject + "&body=" + body,
+      outlook: "https://outlook.office.com/mail/deeplink/compose?to=" + t + "&subject=" + subject + "&body=" + body
+    };
   }
 
   // Opens/closes the window based on the URL (#job=...). This makes each job
