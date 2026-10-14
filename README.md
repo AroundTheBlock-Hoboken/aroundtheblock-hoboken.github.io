@@ -50,3 +50,7 @@ Settings -> Pages -> Source: **Deploy from a branch** -> Branch `main`, folder `
 2. Open the CSV link from `config.js` in a browser. It should show or download plain text rows, not a web page.
 3. Wait up to 5 minutes (Google caches), then hard refresh the site.
 4. Row 1 must still have a `Role` column. The site now says "Couldn't load jobs" if it doesn't, and the browser Console (F12) names the reason.
+
+## Stevens-only applying (how it works today)
+The Apply button opens a new email in **Outlook on the web**, which sends students through the Stevens (Okta) sign-in. The employer sees the @stevens.edu sender address. Gmail and other email options were removed on purpose.
+Limit: this is not a hard lock. The employer emails are in the public sheet, so anyone could email them directly. A true lock needs Stevens IT to register an Okta app and a small server that sends the emails.

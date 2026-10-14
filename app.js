@@ -99,14 +99,14 @@
     if (m) return new Date(m[3].length === 2 ? 2000 + +m[3] : +m[3], m[1] - 1, +m[2]).getTime();
     return 0;   // [CHANGED] no Date.parse fallback: Safari and Chrome disagree on odd formats
   }
-  // [NEW] "today", "yesterday", "3 days ago", otherwise "Oct 13, 2026".
+  // [NEW] "Today", "Yesterday", "3 Days Ago", otherwise "Oct 13, 2026".
   function fmtDate(s) {
     const t = parseDate(s);
     if (!t) return s;
     const days = Math.floor((Date.now() - t) / 864e5);
-    if (days === 0) return "today";
-    if (days === 1) return "yesterday";
-    if (days > 1 && days < 14) return days + " days ago";
+    if (days === 0) return "Today";
+    if (days === 1) return "Yesterday";
+    if (days > 1 && days < 14) return days + " Days Ago";
     return new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   }
   const walkMinutes = s => { const m = (s || "").match(/\d+/); return m ? +m[0] : 999; };
@@ -204,34 +204,23 @@
       const a = el("a", "btn", "Apply on employer site"); a.href = raw; a.target = "_blank"; a.rel = "noopener";
       apply.appendChild(a);
     } else if (email) {
-      // [CHANGED] Phones: opens the phone's email app (mailto:). Computers: opens Outlook on the web.
-      // Either way the email is already written. "Copy the message" is a backup.
-      const L = emailLinks(j, email), phone = isPhone();
-      apply.appendChild(el("h3", "", "Interested in this job?"));
-      const go = el("a", "btn", "Apply"); go.href = phone ? L.mailto : L.outlook;
-      if (!phone) { go.target = "_blank"; go.rel = "noopener"; }
-      go.setAttribute("aria-label", "Apply for " + (j.Role || "this job") + " at " + (j.Business || "this business"));
+      // [CHANGED] STEVENS ONLY: every device uses Outlook, which sends students through the
+      // Stevens (Okta) sign-in. The employer then sees an @stevens.edu sender.
+      // Gmail and generic "email app" options were removed on purpose.
+      const L = emailLinks(j, email);
+      apply.appendChild(el("h3", "", "Stevens students only"));
+      const go = el("a", "btn", "Apply with Stevens Outlook"); go.href = L.outlook;
+      go.target = "_blank"; go.rel = "noopener";
+      go.setAttribute("aria-label", "Apply for " + (j.Role || "this job") + " at " + (j.Business || "this business") + " with Stevens Outlook");
       apply.appendChild(go);
-      apply.appendChild(el("p", "apply-note", phone
-        ? "Opens your email app with the message written for you. Add your details, attach your resume, then send."
-        : "Opens your Stevens Outlook with the message written for you. Add your details, attach your resume, then send."));
-      // Backups, in case the main button doesn't open an email on someone's device
-      const help = el("p", "apply-note", "Email didn't open? Try ");
-      (phone ? [["Outlook", L.outlook, true], ["Gmail", L.gmail, true]]
-             : [["Gmail", L.gmail, true], ["your email app", L.mailto, false]]).forEach(([label, href, web]) => {
-        const x = el("a", "linklike", label); x.href = href;
-        if (web) { x.target = "_blank"; x.rel = "noopener"; }
-        help.appendChild(x); help.appendChild(document.createTextNode(", "));
-      });
-      help.appendChild(document.createTextNode("or "));
-      const copy = el("button", "linklike", "copy the message"); copy.type = "button";
-      copy.addEventListener("click", () => {
-        (navigator.clipboard ? navigator.clipboard.writeText(L.text) : Promise.reject())
-          .then(() => { copy.textContent = "Copied. Paste it into a new email."; })
-          .catch(() => { copy.textContent = "Couldn't copy. Email " + email; });
-      });
-      help.appendChild(copy); help.appendChild(document.createTextNode("."));
-      apply.appendChild(help);
+      apply.appendChild(el("p", "apply-note",
+        "Sign in with your Stevens account. The email is written for you. Add your details, attach your resume, then send. Employers will see your @stevens.edu address."));
+      if (isPhone()) {
+        const help = el("p", "apply-note", "Have the Outlook app? ");
+        const x = el("a", "linklike", "Open it there instead"); x.href = L.app;
+        help.appendChild(x); help.appendChild(document.createTextNode("."));
+        apply.appendChild(help);
+      }
     } else if (applyLink(raw)) {
       const l = applyLink(raw), a = el("a", "btn", l.label); a.href = l.href; apply.appendChild(a);
     } else if (raw) {
@@ -251,7 +240,7 @@
     const lines = [
       "Hello,",
       "",
-      "My name is [your name], and I'm a Stevens student interested in the " + role +
+      "My name is [your name], and I'm a Stevens student writing from my Stevens email address. I'm interested in the " + role +
         " position at " + biz + ". I found the listing on Around the Block.",
       "",
       "About me:",
@@ -266,13 +255,10 @@
       "[Your name]"
     ];
     const q = "subject=" + encodeURIComponent(subject);
+    const body = encodeURIComponent(lines.join("\n"));
     return {
-      mailto: "mailto:" + to + "?" + q + "&body=" + encodeURIComponent(lines.join("\r\n")),
-      outlook: "https://outlook.office.com/mail/deeplink/compose?to=" + encodeURIComponent(to) +
-        "&" + q + "&body=" + encodeURIComponent(lines.join("\n")),
-      gmail: "https://mail.google.com/mail/?view=cm&fs=1&to=" + encodeURIComponent(to) +
-        "&" + q + "&body=" + encodeURIComponent(lines.join("\n")),
-      text: "To: " + to + "\nSubject: " + subject + "\n\n" + lines.join("\n")   // used by "Copy the message"
+      outlook: "https://outlook.office.com/mail/deeplink/compose?to=" + encodeURIComponent(to) + "&" + q + "&body=" + body,
+      app: "ms-outlook://compose?to=" + encodeURIComponent(to) + "&" + q + "&body=" + body   // Outlook phone app
     };
   }
 
