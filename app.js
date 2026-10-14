@@ -100,18 +100,10 @@
     return e;
   }
 
-  // [NEW] Round letter badge (first letter of the business name)
-  function avatar(j) {
-    const a = el("span", "avatar", (j.Business || "?").trim().charAt(0).toUpperCase());
-    a.setAttribute("aria-hidden", "true");
-    return a;
-  }
-
   // ---------- Job card (the clickable summary) ----------
   function card(j) {
     const c = el("article", "card");
     const top = el("div", "card-top");                       // [CHANGED] badge + title side by side
-    top.appendChild(avatar(j));
     const titles = el("div", "titles");
     const h = el("h3");
     const a = el("a", "card-link", j.Role || "Open role");
@@ -146,7 +138,6 @@
   function renderDetail(j) {
     dlgBody.replaceChildren();
     const head = el("header", "d-head");
-    head.appendChild(avatar(j));
     const title = el("h2", "", j.Role || "Open role"); title.id = "dialog-title";
     head.appendChild(title);
     const where = [j.Business, j.Location].filter(Boolean).join(", ");
