@@ -483,12 +483,6 @@
     [...new Set(jobs.map(j => j.Type).filter(Boolean))].sort()
       .forEach(t => typeEl.appendChild(Object.assign(el("option", "", t), { value: t })));
     buildChips();
-    const tc = $("trust-count");                              // [NEW] live count from the sheet
-    if (tc) {
-      const biz = new Set(jobs.map(j => j.Business)).size;
-      tc.hidden = !jobs.length;
-      tc.textContent = jobs.length + (jobs.length === 1 ? " Open Job" : " Open Jobs") + " at " + biz + (biz === 1 ? " Local Business" : " Local Businesses");
-    }
     render();
     syncDialogToHash();                                      // open a job if the link had #job=...
   }
