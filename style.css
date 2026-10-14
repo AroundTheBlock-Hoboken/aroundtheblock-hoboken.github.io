@@ -143,3 +143,19 @@ dialog.dlg-fallback[open] { position: fixed; top: 50%; left: 50%; transform: tra
 .check h3 { margin: 0 0 6px; }
 .check .meta { margin: 0 0 4px; font-size: 1rem; word-break: break-word; }
 .site-footer .fine { font-size: .9rem; max-width: 640px; margin: 8px auto 0; }
+
+/* Quick filters and saved jobs */
+.chips { display: flex; gap: 10px; flex-wrap: wrap; margin: 6px 0 14px; }
+.chip { font: inherit; font-size: 1rem; font-weight: 600; border: 1.5px solid var(--line); background: #fff; color: var(--ink); border-radius: 999px; padding: 8px 16px; min-height: 44px; cursor: pointer; }
+.chip:hover { border-color: var(--coral); }
+.chip.on { background: var(--coral-dark); border-color: var(--coral-dark); color: #fff; }
+.card-top { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 4px; }
+.titles { min-width: 0; flex: 1; }
+.save:not(.save-text) { flex: none; width: 44px; height: 44px; margin: -8px -10px 0 0; border: 0; background: transparent; color: var(--coral-dark); display: grid; place-items: center; cursor: pointer; border-radius: 50%; }
+.save:not(.save-text):hover { background: var(--sage-light); }
+.save svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linejoin: round; }
+.save.on svg { fill: currentColor; }
+.know { margin: 0 0 6px; }
+.site { margin: 12px 0 0; }
+.addr-line { margin-top: 14px; font-size: 1rem; color: var(--muted); }
+.addr-line .linklike { margin-left: 6px; }

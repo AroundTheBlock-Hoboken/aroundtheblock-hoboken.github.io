@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=4">
+  <link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
   <a class="skip" href="#jobs">Skip to job listings</a>
@@ -42,7 +42,7 @@
         <ul class="trust">
           <li>For Stevens students only</li>
           <li>A short walk from campus</li>
-          <li>Free for businesses</li>
+          <li id="trust-count" hidden></li>
         </ul>
       </div>
     </section>
@@ -69,6 +69,8 @@
           </label>
         </div>
 
+        <div id="chips" class="chips" role="group" aria-label="Quick filters"></div>
+
         <div class="status-row">
           <p id="status" class="status" role="status" aria-live="polite">Loading jobs…</p>
           <button type="button" id="refresh" class="linklike">Refresh listings</button>
@@ -82,7 +84,7 @@
       <div class="wrap">
         <h2 id="how-title" class="section-title">How it works</h2>
         <ol class="steps">
-          <li><strong>Browse</strong><span>Every listing shows the hours, pay and how far it is from campus. Click one for the full description.</span></li>
+          <li><strong>Browse</strong><span>Every listing shows the hours and how far it is from campus. Click one for the full description.</span></li>
           <li><strong>Apply</strong><span>Click Apply to open a ready-made email in your Stevens Outlook. Add your details, attach your resume and send. Employers see your @stevens.edu address.</span></li>
           <li><strong>Work</strong><span>Earn money a few minutes from class, on a schedule that works for you.</span></li>
         </ol>
@@ -93,16 +95,16 @@
       <div class="wrap biz">
           <img src="mascot.png" alt="" class="mascot" width="200">
           <div>
-            <h2 id="biz-title" class="section-title left">Hiring? Post a job for free</h2>
-            <p>Reply to our weekly email, or email us with four things:</p>
+            <h2 id="biz-title" class="section-title left">Hiring? Post a job with us</h2>
+            <p>Email us with three things:</p>
             <ul class="ticks">
               <li>The role and hours</li>
-              <li>The pay</li>
               <li>A short description of the job</li>
               <li>Who students should contact to set up an interview</li>
             </ul>
             <p>Filled the role? Just reply "remove" and we'll take it down.</p>
             <a class="btn" id="contact-btn" href="mailto:">Email us</a>
+            <p class="addr-line">Or write to <a class="contact-addr" href="mailto:"></a> <button type="button" class="linklike copy-addr">Copy Address</button></p>
           </div>
       </div>
     </section>
@@ -124,7 +126,7 @@
     </div>
   </dialog>
 
-  <script src="config.js?v=4"></script>
-  <script src="app.js?v=4"></script>
+  <script src="config.js?v=6"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>

@@ -18,13 +18,16 @@ Part-time jobs at Hoboken businesses, a short walk from Stevens.
 | Location | Washington St |
 | Type | Coffee shop, Restaurant, Retail (powers the filter) |
 | Hours | Mon & Wed, 7 to 11am |
-| Pay | $17/hr + tips |
+| Pay | (not shown on the site for now) |
 | Walk | `4 min walk` (the number is used for "Closest to campus") |
 | Apply | The employer's email (best), a web link, or a phone number |
 | Posted | `2026-10-14` (or `10/14/2026`, or `10-14-2026`) |
 | Active | Type `No` to hide a job. Blank or `Yes` = shown |
 | Expires (optional) | Last day to show the job, e.g. `2026-11-30` or `12-1-2026`. It hides itself after that day |
 | Job Description | 2 to 5 sentences. Alt+Enter (Windows) / Cmd+Enter (Mac) in a cell starts a new paragraph |
+| Experience (optional) | e.g. `No experience needed`. Shows as a tag in the job window |
+| Perks (optional) | e.g. `Free meals; Tips; Flexible schedule` (separate with `;`) |
+| Website (optional) | The business website. Adds a link in the job window |
 | ID (optional) | Short unique name for the job's link, e.g. `cafe-barista` |
 
 Only put what students should see in this sheet. Keep private notes elsewhere.
@@ -69,3 +72,14 @@ Add `?check=1` to the end of the site address (example: `https://aroundtheblock-
 
 ## If you made a new copy of the sheet
 The site reads ONE published sheet, set by `sheetCsvUrl` in `config.js`. A new or copied Google Sheet has a new link. Publish the new sheet (File -> Share -> Publish to web -> the jobs tab -> CSV), copy its link, and paste it into `config.js` in place of the old one.
+
+## Connecting the Google Sheet to the website (the key step)
+The website reads ONE published copy of the sheet, using the link in `config.js` (`sheetCsvUrl`).
+1. Open the Google Sheet with the jobs.
+2. **File -> Share -> Publish to web**.
+3. Under "Link", choose the **jobs tab** (not "Entire document") and **Comma-separated values (.csv)**, then click **Publish**.
+4. Check **Automatically republish when changes are made**.
+5. Copy the link that appears. It starts with `https://docs.google.com/spreadsheets/d/e/2PACX-...`.
+   (The normal "edit" link you use in the browser will NOT work here.)
+6. On GitHub, open `config.js`, click the pencil icon, replace the text between the quotes after `sheetCsvUrl:` with the new link, and click **Commit changes**.
+After this, any row typed in the sheet shows up on the site within a few minutes.

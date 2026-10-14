@@ -32,18 +32,36 @@
   }
   const isOpen = () => dlg.hasAttribute("open");
 
-  // Email button in the "For businesses" section (unchanged)
-  if (cfg.contactEmail) {
-    $("contact-btn").href = "mailto:" + cfg.contactEmail +
-      "?subject=" + encodeURIComponent("Post a job on Around the Block");
-  }
-
-  if (cfg.contactEmail && $("footer-contact")) $("footer-contact").href = "mailto:" + cfg.contactEmail;
+  // [FIXED] "Email us" buttons. They open Outlook (web on computers, the app on phones),
+  // and the address is always shown on the page so nobody gets stuck.
+  (function () {
+    const to = cfg.contactEmail || "";
+    const subject = "Post a job on Around the Block";
+    const body = "Hello,\n\nWe'd like to post a job on Around the Block.\n\nBusiness name:\nRole:\nHours:\nShort description:\nWho students should contact:\n\nThank you,";
+    const phone = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+    const q = "to=" + encodeURIComponent(to) + "&subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
+    const plain = "mailto:" + to + "?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
+    ["contact-btn", "footer-contact"].forEach(id => {
+      const a = $(id); if (!a || !to) return;
+      a.href = plain;                       // works with any mail app, and if scripts are slow
+      a.addEventListener("click", e => {
+        e.preventDefault();
+        if (phone) { location.href = "ms-outlook://compose?" + q; }
+        else { window.open("https://outlook.office.com/mail/deeplink/compose?" + q, "_blank", "noopener"); }
+      });
+    });
+    document.querySelectorAll(".contact-addr").forEach(n => { n.textContent = to; if (n.tagName === "A") n.href = "mailto:" + to; });
+    document.querySelectorAll(".copy-addr").forEach(btn => btn.addEventListener("click", () => {
+      const done = () => { btn.textContent = "Copied"; setTimeout(() => { btn.textContent = "Copy Address"; }, 2000); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(to).then(done, () => {});
+      else { const t = document.createElement("textarea"); t.value = to; document.body.appendChild(t); t.select(); try { document.execCommand("copy"); done(); } catch (x) {} document.body.removeChild(t); }
+    }));
+  })();
 
   // ---------- [CHANGED] Column names ----------
   // Sheet headers are now matched ignoring capitals, so "pay" or "PAY" still works.
   const COLUMNS = ["Role","Business","Location","Type","Hours","Pay","Walk",
-                   "Apply","Posted","Active","Description","ID","Expires"];       // [NEW] Description, ID
+                   "Apply","Posted","Active","Description","ID","Expires","Experience","Website","Perks"];       // [NEW] Description, ID
   const CANON = Object.fromEntries(COLUMNS.map(c => [c.toLowerCase(), c]));
   // [CHANGED] Alternate header names that also work. Your sheet uses "Job Description".
   Object.assign(CANON, {
@@ -165,6 +183,53 @@
     return Promise.resolve(legacyCopy(t));
   }
 
+  // [NEW] Saved jobs (stored on the student's own phone or computer) and quick-filter chips
+  const SAVE_KEY = "atb-saved";
+  const HEART = '<svg viewBox="0 0 24 24" focusable="false"><path d="M12 20.5s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.9c0 5.4-7.5 10-7.5 10z"/></svg>';
+  let saved = [];
+  try { saved = JSON.parse(localStorage.getItem(SAVE_KEY) || "[]") || []; } catch (e) { saved = []; }
+  const chipsEl = $("chips"), chipOn = { weekend: false, close: false, saved: false }, chipEls = {};
+  function updateChips() { if (chipEls.saved) chipEls.saved.textContent = "Saved" + (saved.length ? " (" + saved.length + ")" : ""); }
+  function toggleSave(id) {
+    const i = saved.indexOf(id);
+    if (i < 0) saved.push(id); else saved.splice(i, 1);
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(saved)); } catch (e) {}
+    updateChips();
+  }
+  function saveButton(j, withText) {
+    const b = el("button", withText ? "save save-text btn ghost small" : "save"); b.type = "button";
+    const paint = () => {
+      const on = saved.indexOf(j._id) >= 0;
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+      b.classList.toggle("on", on);
+      b.setAttribute("aria-label", (on ? "Remove saved job: " : "Save job: ") + (j.Role || "") + " at " + (j.Business || ""));
+      if (withText) b.textContent = on ? "Saved" : "Save Job";
+    };
+    if (!withText) b.innerHTML = HEART;
+    paint();
+    b.addEventListener("click", e => { e.stopPropagation(); toggleSave(j._id); paint(); });
+    return b;
+  }
+  function buildChips() {
+    if (!chipsEl || chipsEl.firstChild) return;
+    [["weekend", "Weekends"], ["close", "Under 6 Min Walk"], ["saved", "Saved"]].forEach(([k, label]) => {
+      const b = el("button", "chip", label); b.type = "button"; b.setAttribute("aria-pressed", "false");
+      b.addEventListener("click", () => {
+        chipOn[k] = !chipOn[k];
+        b.setAttribute("aria-pressed", chipOn[k] ? "true" : "false"); b.classList.toggle("on", chipOn[k]);
+        render();
+      });
+      chipEls[k] = b; chipsEl.appendChild(b);
+    });
+    updateChips();
+  }
+  function safeUrl(v) {   // only real web addresses are linked
+    v = (v || "").trim();
+    if (/^https?:\/\/\S+$/i.test(v)) return v;
+    if (/^[\w-]+(\.[\w-]+)+(\/\S*)?$/i.test(v)) return "https://" + v;
+    return "";
+  }
+
   // ---------- Job card (the clickable summary) ----------
   function card(j) {
     const c = el("article", "card");
@@ -178,6 +243,7 @@
     const where = [j.Business, j.Location].filter(Boolean).join(", ");
     if (where) titles.appendChild(el("p", "where", where));
     top.appendChild(titles);
+    top.appendChild(saveButton(j));                          // [NEW] heart to save a job
     c.appendChild(top);
 
     const tags = el("div", "tags");                          // [NEW] tag row
@@ -185,7 +251,6 @@
     if (tags.childNodes.length) c.appendChild(tags);
 
     if (j.Hours) c.appendChild(row("clock", j.Hours));
-    if (j.Pay) c.appendChild(row("coin", j.Pay, "pay"));
     if (j.Walk) c.appendChild(row("pin", j.Walk + " from campus"));
     if (parseDate(j.Expires)) c.appendChild(row("cal", "Apply by " + fmtDate(j.Expires)));   // [NEW] shows the sheet's Expires date
     c.appendChild(el("div", "spacer"));
@@ -196,7 +261,7 @@
     if (j.Posted) c.appendChild(el("p", "posted", "Posted " + fmtDate(j.Posted)));
 
     // [NEW] Clicking anywhere on the card opens it (links inside still work normally)
-    c.addEventListener("click", e => { if (!e.target.closest("a")) location.hash = "job=" + j._id; });
+    c.addEventListener("click", e => { if (!e.target.closest("a, button")) location.hash = "job=" + j._id; });
     return c;
   }
 
@@ -215,7 +280,7 @@
 
     // Facts grid: only shows rows that have a value
     const facts = el("dl", "facts");
-    [["Hours", j.Hours], ["Pay", j.Pay],
+    [["Hours", j.Hours],
      ["Distance", j.Walk && j.Walk + " from campus"], ["Posted", j.Posted && fmtDate(j.Posted)],
      ["Apply By", parseDate(j.Expires) ? fmtDate(j.Expires) : ""]].forEach(([k, v]) => {
       if (!v) return;
@@ -224,12 +289,23 @@
     });
     dlgBody.appendChild(facts);
 
+    // [NEW] Optional sheet columns: Experience and Perks (separate perks with ; )
+    const know = [];
+    if (j.Experience) know.push(j.Experience);
+    if (j.Perks) j.Perks.split(/[;|]/).map(x => x.trim()).filter(Boolean).forEach(x => know.push(x));
+    if (know.length) { const k = el("div", "tags know"); know.forEach(t => k.appendChild(el("span", "tag", t))); dlgBody.appendChild(k); }
+
     // Description: line breaks in the sheet cell become paragraphs
     const desc = el("section", "d-desc");
     desc.appendChild(el("h3", "", "About this job"));
     if (j.Description) paragraphs(j.Description).forEach(p => desc.appendChild(el("p", "", p)));
     else desc.appendChild(el("p", "meta", "No description yet. Contact the business to ask about the role."));
     dlgBody.appendChild(desc);
+    const site = safeUrl(j.Website);                           // [NEW] optional Website column
+    if (site) {
+      const p = el("p", "meta site"), a = el("a", "", "Visit " + j.Business + " Website");
+      a.href = site; a.target = "_blank"; a.rel = "noopener noreferrer"; p.appendChild(a); dlgBody.appendChild(p);
+    }
 
     // [CHANGED] Apply area. One button, no form.
     // - Email in the sheet -> "Apply by email" opens the student's email app with a ready-made message
@@ -283,6 +359,7 @@
       apply.appendChild(el("p", "meta", "To apply: " + raw));
     }
     dlgBody.insertBefore(apply, desc);   // [CHANGED] Apply sits above the description
+    const act = el("div", "d-actions"); act.appendChild(saveButton(j, true)); dlgBody.appendChild(act);   // [NEW] Save Job
   }
 
   // ---------- [NEW] The email the student sends ----------
@@ -292,23 +369,23 @@
 
   function emailLinks(j, to) {
     const role = j.Role || "the open role", biz = j.Business || "your business";
-    const subject = "Application for " + role + " at " + biz;
+    const subject = "Stevens Student Application: " + role + " at " + biz;
     const lines = [
-      "Hello,",
+      "Hello " + biz + " Team,",
       "",
-      "My name is [your name], and I'm a Stevens student writing from my Stevens email address. I'm interested in the " + role +
-        " position at " + biz + ". I found the listing on Around the Block.",
+      "My name is [Your Name], and I'm a [class year] [major] student at Stevens Institute of Technology. I'm applying for the " + role + " position that I found on Around the Block.",
       "",
-      "About me:",
-      "- Class year and major:",
-      "- Phone number:",
+      "A little about me: [one or two sentences about your experience, or why this job interests you]",
       "",
-      "My resume is attached. I'd welcome the chance to interview with you.",
-      "I'm generally available for an interview on:",
-      "- Days and times:",
+      "Availability for work: [days and hours around your classes]",
+      "Availability for an interview: [days and times]",
+      "Phone: [your phone number]",
       "",
-      "Thank you for your time,",
-      "[Your name]"
+      "My resume is attached. Thank you for your time and consideration.",
+      "",
+      "Best,",
+      "[Your Name]",
+      "Stevens Institute of Technology"
     ];
     const q = "subject=" + encodeURIComponent(subject);
     const body = encodeURIComponent(lines.join("\n"));
@@ -329,6 +406,7 @@
   }
   dlg.addEventListener("close", () => {            // user pressed X, Esc, or clicked outside
     document.body.classList.remove("modal-open");
+    if (jobs.length) render();
     if (location.hash.startsWith("#job=")) history.replaceState(null, "", location.pathname + location.search);
   });
   dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); }); // click backdrop
@@ -342,6 +420,9 @@
     // [CHANGED] Search only looks at the useful columns (not links or "Yes")
     const shown = jobs.filter(j =>
       (!t || j.Type === t) &&
+      (!chipOn.weekend || /weekend|\bsat|\bsun/i.test(j.Hours || "")) &&
+      (!chipOn.close || walkMinutes(j.Walk) <= 6) &&
+      (!chipOn.saved || saved.indexOf(j._id) >= 0) &&
       (!q || [j.Role, j.Business, j.Location, j.Type, j.Hours, j.Description].join(" ").toLowerCase().includes(q)));
     // [NEW] Sorting
     shown.sort(s === "close"
@@ -351,10 +432,14 @@
     setChildren(listEl, shown.map(card));
     if (!shown.length) {
       const box = el("div", "empty");
-      box.appendChild(el("p", "", jobs.length ? "No jobs match your search." : "No open jobs right now. Check back soon."));
+      box.appendChild(el("p", "", !jobs.length ? "No open jobs right now. Check back soon." : (chipOn.saved && !saved.length ? "You haven't saved any jobs yet. Tap the heart on a job to save it." : "No jobs match your search.")));
       if (jobs.length) {                                     // [NEW] Clear filters button
         const b = el("button", "btn ghost", "Clear filters"); b.type = "button";
-        b.addEventListener("click", () => { qEl.value = ""; typeEl.value = ""; render(); });
+        b.addEventListener("click", () => {
+          qEl.value = ""; typeEl.value = "";
+          Object.keys(chipOn).forEach(k => { chipOn[k] = false; if (chipEls[k]) { chipEls[k].setAttribute("aria-pressed", "false"); chipEls[k].classList.remove("on"); } });
+          render();
+        });
         box.appendChild(b);
       }
       listEl.appendChild(box);
@@ -377,7 +462,7 @@
     add("Sheet link ends in: ..." + url.replace(/\?.*$/, "").slice(-10) + " (tab " + ((url.match(/gid=(\d+)/) || [])[1] || "unknown") + ")");
     if (errMsg) { add("Could not read the sheet: " + errMsg); return; }
     add("Columns found: " + lastHead.filter(Boolean).join(", "));
-    const need = ["Role","Business","Location","Type","Hours","Pay","Walk","Apply","Posted"].filter(c => lastHead.indexOf(c) < 0);
+    const need = ["Role","Business","Location","Type","Hours","Walk","Apply","Posted"].filter(c => lastHead.indexOf(c) < 0);
     if (need.length) add("Missing columns (add them to row 1): " + need.join(", "));
     add(data.length + " rows read. Showing " + data.filter(isActive).length + ".");
     data.forEach(j => add((j.Business || "(no business)") + " / " + (j.Role || "(no role)") + ": " + (hideReason(j) ? "HIDDEN. " + hideReason(j) : "Showing")));
@@ -395,6 +480,13 @@
     setChildren(typeEl, [Object.assign(el("option", "", "All types"), { value: "" })]);
     [...new Set(jobs.map(j => j.Type).filter(Boolean))].sort()
       .forEach(t => typeEl.appendChild(Object.assign(el("option", "", t), { value: t })));
+    buildChips();
+    const tc = $("trust-count");                              // [NEW] live count from the sheet
+    if (tc) {
+      const biz = new Set(jobs.map(j => j.Business)).size;
+      tc.hidden = !jobs.length;
+      tc.textContent = jobs.length + (jobs.length === 1 ? " Open Job" : " Open Jobs") + " at " + biz + (biz === 1 ? " Local Business" : " Local Businesses");
+    }
     render();
     syncDialogToHash();                                      // open a job if the link had #job=...
   }
