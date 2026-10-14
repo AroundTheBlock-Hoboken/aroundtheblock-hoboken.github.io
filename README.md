@@ -21,8 +21,9 @@ Part-time jobs at Hoboken businesses, a short walk from Stevens.
 | Pay | $17/hr + tips |
 | Walk | `4 min walk` (the number is used for "Closest to campus") |
 | Apply | The employer's email (best), a web link, or a phone number |
-| Posted | `2026-10-14` |
+| Posted | `2026-10-14` (or `10/14/2026`, or `10-14-2026`) |
 | Active | `Yes` or `No`. Blank = hidden |
+| Expires (optional) | Last day to show the job, e.g. `2026-11-30` or `12-1-2026`. It hides itself after that day |
 | Job Description | 2 to 5 sentences. Alt+Enter (Windows) / Cmd+Enter (Mac) in a cell starts a new paragraph |
 | ID (optional) | Short unique name for the job's link, e.g. `cafe-barista` |
 
@@ -39,7 +40,13 @@ Only put what students should see in this sheet. Keep private notes elsewhere.
 | `README.md` | This file |
 
 ## Changing the apply email wording
-Open `app.js` and find `applyLinks`. Edit the lines of text there.
+Open `app.js` and find `emailLinks`. Edit the lines of text there.
 
 ## Putting it online
 Settings -> Pages -> Source: **Deploy from a branch** -> Branch `main`, folder `/ (root)` -> Save.
+
+## If new rows stop showing up on the site
+1. In the Google Sheet: **File -> Share -> Publish to web**. It should say "Published", with the jobs tab and **Comma-separated values (.csv)** selected, and **Automatically republish when changes are made** checked. If you stopped publishing, click **Publish** again.
+2. Open the CSV link from `config.js` in a browser. It should show or download plain text rows, not a web page.
+3. Wait up to 5 minutes (Google caches), then hard refresh the site.
+4. Row 1 must still have a `Role` column. The site now says "Couldn't load jobs" if it doesn't, and the browser Console (F12) names the reason.

@@ -17,25 +17,44 @@
   const dlg = $("job-dialog"), dlgBody = $("dialog-body");   // [NEW] detail window
   let jobs = [];
 
+  // [NEW] Works on older Safari (iPhone/iPad): a safe way to clear and fill a box, and a basic
+  // pop-up window for iOS versions before 15.4, which don't support <dialog>.
+  function setChildren(node, kids) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+    kids.forEach(k => node.appendChild(k));
+  }
+  const dialogFallback = typeof dlg.showModal !== "function";
+  if (dialogFallback) {
+    dlg.classList.add("dlg-fallback");
+    dlg.showModal = () => dlg.setAttribute("open", "");
+    dlg.close = () => { if (dlg.hasAttribute("open")) { dlg.removeAttribute("open"); dlg.dispatchEvent(new Event("close")); } };
+    document.addEventListener("keydown", e => { if (e.key === "Escape") dlg.close(); });
+  }
+  const isOpen = () => dlg.hasAttribute("open");
+
   // Email button in the "For businesses" section (unchanged)
   if (cfg.contactEmail) {
     $("contact-btn").href = "mailto:" + cfg.contactEmail +
       "?subject=" + encodeURIComponent("Post a job on Around the Block");
   }
 
+  if (cfg.contactEmail && $("footer-contact")) $("footer-contact").href = "mailto:" + cfg.contactEmail;
+
   // ---------- [CHANGED] Column names ----------
   // Sheet headers are now matched ignoring capitals, so "pay" or "PAY" still works.
   const COLUMNS = ["Role","Business","Location","Type","Hours","Pay","Walk",
-                   "Apply","Posted","Active","Description","ID"];       // [NEW] Description, ID
+                   "Apply","Posted","Active","Description","ID","Expires"];       // [NEW] Description, ID
   const CANON = Object.fromEntries(COLUMNS.map(c => [c.toLowerCase(), c]));
   // [CHANGED] Alternate header names that also work. Your sheet uses "Job Description".
   Object.assign(CANON, {
     "job description": "Description",
     "job desc": "Description",
     "about": "Description",
-    "details": "Description"
+    "details": "Description",
+    "closes": "Expires",
+    "expiry": "Expires"
   });
-  let hasActiveColumn = false;
+  let hasActiveColumn = false, hasRoleColumn = false;
 
   // ---------- CSV parser (same logic as before, plus header cleanup) ----------
   function parseCSV(text) {
@@ -56,6 +75,7 @@
     if (cell || row.length) { row.push(cell); rows.push(row); }
     const head = (rows.shift() || []).map(h => CANON[h.trim().toLowerCase()] || h.trim()); // [CHANGED]
     hasActiveColumn = head.includes("Active");
+    hasRoleColumn = head.includes("Role");
     return rows
       .filter(r => r.some(v => v.trim()))
       .map(r => Object.fromEntries(head.map((h, i) => [h, (r[i] || "").trim()])));
@@ -64,22 +84,30 @@
   // ---------- [CHANGED] Active check ----------
   // Before: a blank Active cell meant "show it". Now it must say Yes.
   // (If your sheet has no Active column at all, everything is shown.)
-  const isActive = j => !hasActiveColumn || /^(y|yes|true|1)$/i.test(j.Active || "");
+  // [NEW] A job with an Expires date (e.g. 2026-11-30) disappears after that day.
+  const isExpired = j => { const t = parseDate(j.Expires); return !!t && t + 864e5 <= Date.now(); };
+  const isActive = j => (!hasActiveColumn || /^(y|yes|true|1)$/i.test(j.Active || "")) && !isExpired(j);
 
   // ---------- [NEW] Helpers ----------
   // Reads 2026-10-14 or 10/14/2026 (Google Sheets can publish either). Returns a number.
   function parseDate(s) {
     if (!s) return 0;
-    let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    s = s.trim();
+    let m = s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/);          // 2026-10-14
     if (m) return new Date(+m[1], m[2] - 1, +m[3]).getTime();
-    m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-    if (m) return new Date(+m[3], m[1] - 1, +m[2]).getTime();
-    const t = Date.parse(s); return isNaN(t) ? 0 : t;
+    m = s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/);          // 10/14/2026 or 12-1-2026 (month first)
+    if (m) return new Date(m[3].length === 2 ? 2000 + +m[3] : +m[3], m[1] - 1, +m[2]).getTime();
+    return 0;   // [CHANGED] no Date.parse fallback: Safari and Chrome disagree on odd formats
   }
-  // [NEW] Shows 2026-10-13 as "Oct 13, 2026". Falls back to the original text.
+  // [NEW] "today", "yesterday", "3 days ago", otherwise "Oct 13, 2026".
   function fmtDate(s) {
     const t = parseDate(s);
-    return t ? new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : s;
+    if (!t) return s;
+    const days = Math.floor((Date.now() - t) / 864e5);
+    if (days === 0) return "today";
+    if (days === 1) return "yesterday";
+    if (days > 1 && days < 14) return days + " days ago";
+    return new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   }
   const walkMinutes = s => { const m = (s || "").match(/\d+/); return m ? +m[0] : 999; };
   const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -136,7 +164,7 @@
 
   // ---------- [NEW] Detail window ----------
   function renderDetail(j) {
-    dlgBody.replaceChildren();
+    setChildren(dlgBody, []);
     const head = el("header", "d-head");
     const title = el("h2", "", j.Role || "Open role"); title.id = "dialog-title";
     head.appendChild(title);
@@ -176,14 +204,34 @@
       const a = el("a", "btn", "Apply on employer site"); a.href = raw; a.target = "_blank"; a.rel = "noopener";
       apply.appendChild(a);
     } else if (email) {
-      // [CHANGED] One button. Opens a new email in Outlook on the web (Stevens email).
+      // [CHANGED] Phones: opens the phone's email app (mailto:). Computers: opens Outlook on the web.
+      // Either way the email is already written. "Copy the message" is a backup.
+      const L = emailLinks(j, email), phone = isPhone();
       apply.appendChild(el("h3", "", "Interested in this job?"));
-      const go = el("a", "btn", "Apply"); go.href = outlookLink(j, email);
-      go.target = "_blank"; go.rel = "noopener";
+      const go = el("a", "btn", "Apply"); go.href = phone ? L.mailto : L.outlook;
+      if (!phone) { go.target = "_blank"; go.rel = "noopener"; }
       go.setAttribute("aria-label", "Apply for " + (j.Role || "this job") + " at " + (j.Business || "this business"));
       apply.appendChild(go);
-      apply.appendChild(el("p", "apply-note",
-        "Opens your Stevens Outlook with the email written for you. Add your details, attach your resume, then send."));
+      apply.appendChild(el("p", "apply-note", phone
+        ? "Opens your email app with the message written for you. Add your details, attach your resume, then send."
+        : "Opens your Stevens Outlook with the message written for you. Add your details, attach your resume, then send."));
+      // Backups, in case the main button doesn't open an email on someone's device
+      const help = el("p", "apply-note", "Email didn't open? Try ");
+      (phone ? [["Outlook", L.outlook, true], ["Gmail", L.gmail, true]]
+             : [["Gmail", L.gmail, true], ["your email app", L.mailto, false]]).forEach(([label, href, web]) => {
+        const x = el("a", "linklike", label); x.href = href;
+        if (web) { x.target = "_blank"; x.rel = "noopener"; }
+        help.appendChild(x); help.appendChild(document.createTextNode(", "));
+      });
+      help.appendChild(document.createTextNode("or "));
+      const copy = el("button", "linklike", "copy the message"); copy.type = "button";
+      copy.addEventListener("click", () => {
+        (navigator.clipboard ? navigator.clipboard.writeText(L.text) : Promise.reject())
+          .then(() => { copy.textContent = "Copied. Paste it into a new email."; })
+          .catch(() => { copy.textContent = "Couldn't copy. Email " + email; });
+      });
+      help.appendChild(copy); help.appendChild(document.createTextNode("."));
+      apply.appendChild(help);
     } else if (applyLink(raw)) {
       const l = applyLink(raw), a = el("a", "btn", l.label); a.href = l.href; apply.appendChild(a);
     } else if (raw) {
@@ -194,8 +242,12 @@
 
   // ---------- [NEW] The email the student sends ----------
   // EDIT THE WORDING HERE. Each line below becomes a line in the email.
-  function outlookLink(j, to) {
+  const isPhone = () => /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
+    (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));   // iPads pretend to be Macs
+
+  function emailLinks(j, to) {
     const role = j.Role || "the open role", biz = j.Business || "your business";
+    const subject = "Application for " + role + " at " + biz;
     const lines = [
       "Hello,",
       "",
@@ -213,10 +265,15 @@
       "Thank you for your time,",
       "[Your name]"
     ];
-    return "https://outlook.office.com/mail/deeplink/compose" +
-      "?to=" + encodeURIComponent(to) +
-      "&subject=" + encodeURIComponent("Application for " + role + " at " + biz) +
-      "&body=" + encodeURIComponent(lines.join("\n"));
+    const q = "subject=" + encodeURIComponent(subject);
+    return {
+      mailto: "mailto:" + to + "?" + q + "&body=" + encodeURIComponent(lines.join("\r\n")),
+      outlook: "https://outlook.office.com/mail/deeplink/compose?to=" + encodeURIComponent(to) +
+        "&" + q + "&body=" + encodeURIComponent(lines.join("\n")),
+      gmail: "https://mail.google.com/mail/?view=cm&fs=1&to=" + encodeURIComponent(to) +
+        "&" + q + "&body=" + encodeURIComponent(lines.join("\n")),
+      text: "To: " + to + "\nSubject: " + subject + "\n\n" + lines.join("\n")   // used by "Copy the message"
+    };
   }
 
   // Opens/closes the window based on the URL (#job=...). This makes each job
@@ -224,10 +281,11 @@
   function syncDialogToHash() {
     const m = location.hash.match(/^#job=(.+)$/);
     const j = m && jobs.find(x => x._id === decodeURIComponent(m[1]));
-    if (j) { renderDetail(j); if (!dlg.open) dlg.showModal(); }
-    else if (dlg.open) dlg.close();
+    if (j) { renderDetail(j); document.body.classList.add("modal-open"); if (!isOpen()) dlg.showModal(); }
+    else if (isOpen()) dlg.close();
   }
   dlg.addEventListener("close", () => {            // user pressed X, Esc, or clicked outside
+    document.body.classList.remove("modal-open");
     if (location.hash.startsWith("#job=")) history.replaceState(null, "", location.pathname + location.search);
   });
   dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); }); // click backdrop
@@ -247,7 +305,7 @@
       ? (a, b) => walkMinutes(a.Walk) - walkMinutes(b.Walk)
       : (a, b) => parseDate(b.Posted) - parseDate(a.Posted));
 
-    listEl.replaceChildren(...shown.map(card));
+    setChildren(listEl, shown.map(card));
     if (!shown.length) {
       const box = el("div", "empty");
       box.appendChild(el("p", "", jobs.length ? "No jobs match your search." : "No open jobs right now. Check back soon."));
@@ -270,7 +328,7 @@
       j._id = seen[id] > 1 ? id + "-" + seen[id] : id;
       return j;
     });
-    typeEl.replaceChildren(Object.assign(el("option", "", "All types"), { value: "" }));
+    setChildren(typeEl, [Object.assign(el("option", "", "All types"), { value: "" })]);
     [...new Set(jobs.map(j => j.Type).filter(Boolean))].sort()
       .forEach(t => typeEl.appendChild(Object.assign(el("option", "", t), { value: t })));
     render();
@@ -282,17 +340,36 @@
   sortEl.addEventListener("change", render);
 
   // ---------- Loading ----------
+  // [CHANGED] Checks that Google really sent a CSV (not a sign-in page), never reuses an old
+  // browser copy, and keeps the last good listings in case Google can't be reached.
+  const CACHE_KEY = "atb-last-csv";
+  const saveCopy = t => { try { localStorage.setItem(CACHE_KEY, t); } catch (e) {} };
+  const savedCopy = () => { try { return localStorage.getItem(CACHE_KEY); } catch (e) { return null; } };
+
+  function readCSV(text) {
+    if (/^\s*</.test(text)) throw new Error("Got a web page instead of CSV. Is the sheet still published to the web?");
+    const data = parseCSV(text);
+    if (!hasRoleColumn) throw new Error("No 'Role' column found in row 1 of the sheet.");
+    return data;
+  }
+
   function load() {
     if (!cfg.sheetCsvUrl) { setup(cfg.exampleJobs || []); return; }
     statusEl.textContent = "Loading jobs…";
-    fetch(cfg.sheetCsvUrl + (cfg.sheetCsvUrl.includes("?") ? "&" : "?") + "t=" + Date.now())
-      .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
-      .then(t => setup(parseCSV(t)))
-      .catch(() => {                                         // [CHANGED] error now has a Retry button
+    const url = cfg.sheetCsvUrl + (cfg.sheetCsvUrl.includes("?") ? "&" : "?") + "t=" + Date.now();
+    fetch(url, { cache: "no-store" })
+      .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
+      .then(t => { const data = readCSV(t); saveCopy(t); setup(data); })
+      .catch(err => {
+        console.error("Around the Block: could not load the sheet.", err);   // team: see this in the browser console
+        const old = savedCopy();
+        if (old) {
+          try { setup(readCSV(old)); statusEl.textContent += " (saved copy, couldn't reach the sheet)"; return; } catch (e) {}
+        }
         statusEl.textContent = "Couldn't load jobs. Check your connection and try again.";
         const box = el("div", "empty"), b = el("button", "btn", "Try again"); b.type = "button";
         b.addEventListener("click", load); box.appendChild(b);
-        listEl.replaceChildren(box);
+        setChildren(listEl, [box]);
       });
   }
   load();

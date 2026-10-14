@@ -1,10 +1,10 @@
 /* =====================================================================
    style.css | Around the Block
-   Original look: cream background, navy text, coral + sage, EB Garamond.
+   Original look: cream background, warm dark text, coral + sage, EB Garamond.
    Small improvements are marked [NEW].
    ===================================================================== */
 :root {
-  --bg: #F9F6F5; --card: #FFFFFF; --ink: #1F2447; --muted: #5E5A66;
+  --bg: #F9F6F5; --card: #FFFFFF; --ink: #2D2623; --muted: #6B625E;
   --coral: #DE9585; --coral-dark: #A9503F;
   --sage: #8FA77E; --sage-light: #E7EEE2; --line: #E4DCD8; --radius: 18px;
 }
@@ -12,7 +12,8 @@
 html { scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 body { margin: 0; background: var(--bg); color: var(--ink); font-family: "EB Garamond", Georgia, serif; font-size: 1.2rem; line-height: 1.5; }
-body:has(dialog[open]) { overflow: hidden; }
+body.modal-open { overflow: hidden; }
+dialog:not([open]) { display: none; }
 img { max-width: 100%; height: auto; }
 a { color: var(--coral-dark); }
 .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
@@ -54,8 +55,8 @@ nav a:hover { color: var(--coral-dark); }
 
 /* Job cards */
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 22px; }
-.card { background: var(--card); border: 1.5px solid var(--line); border-radius: var(--radius); padding: 24px; display: flex; flex-direction: column; box-shadow: 0 2px 6px rgba(31,36,71,.06); cursor: pointer; transition: border-color .15s, box-shadow .15s; }
-.card:hover { border-color: var(--coral); box-shadow: 0 6px 16px rgba(31,36,71,.10); }
+.card { background: var(--card); border: 1.5px solid var(--line); border-radius: var(--radius); padding: 24px; display: flex; flex-direction: column; box-shadow: 0 2px 6px rgba(45,38,35,.06); cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.card:hover { border-color: var(--coral); box-shadow: 0 6px 16px rgba(45,38,35,.10); }
 .card h3 { margin: 0; font-size: 1.7rem; line-height: 1.2; font-weight: 700; }                            /* [NEW] slightly larger, bold role */
 .card-link { color: var(--ink); text-decoration: none; }
 .card-link:hover { color: var(--coral-dark); text-decoration: underline; }
@@ -71,8 +72,8 @@ nav a:hover { color: var(--coral-dark); }
 .empty .btn { margin-top: 8px; }
 
 /* [NEW] Job detail window */
-dialog { border: 0; padding: 0; border-radius: var(--radius); width: min(640px, calc(100% - 24px)); max-height: calc(100% - 24px); background: var(--card); color: var(--ink); box-shadow: 0 20px 60px rgba(31,36,71,.35); }
-dialog::backdrop { background: rgba(31,36,71,.55); }
+dialog { border: 0; padding: 0; border-radius: var(--radius); width: min(640px, calc(100% - 24px)); max-height: calc(100% - 24px); background: var(--card); color: var(--ink); box-shadow: 0 20px 60px rgba(45,38,35,.35); }
+dialog::backdrop { background: rgba(45,38,35,.55); }
 .d-inner { padding: 32px; position: relative; }
 .d-close { position: absolute; top: 12px; right: 12px; width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid var(--line); background: #fff; font-size: 1.6rem; line-height: 1; cursor: pointer; color: var(--ink); }
 .d-close:hover { background: var(--sage-light); }
@@ -89,6 +90,9 @@ dialog::backdrop { background: rgba(31,36,71,.55); }
 .d-desc p { margin: 0 0 10px; max-width: 62ch; }
 .d-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 22px; }
 
+/* [NEW] Basic pop-up for older iPhones/iPads that lack <dialog> */
+dialog.dlg-fallback[open] { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); margin: 0; z-index: 100; overflow-y: auto; box-shadow: 0 0 0 100vmax rgba(45,38,35,.55); }
+
 /* How it works */
 .steps { list-style: none; counter-reset: s; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 22px; }
 .steps li { counter-increment: s; background: #fff; border-radius: var(--radius); padding: 24px; }
@@ -101,7 +105,10 @@ dialog::backdrop { background: rgba(31,36,71,.55); }
 .ticks { padding-left: 1.2em; }
 .ticks li::marker { color: var(--sage); }
 
+.linklike { background: none; border: 0; padding: 0; font: inherit; color: var(--coral-dark); text-decoration: underline; cursor: pointer; }
+
 /* Footer */
+.site-footer p { margin: 4px 0; }
 .site-footer { border-top: 1px solid var(--line); padding: 28px 0; color: var(--muted); text-align: center; font-size: 1rem; }
 
 @media (max-width: 640px) {
@@ -116,4 +123,5 @@ dialog::backdrop { background: rgba(31,36,71,.55); }
   .d-inner { padding: 24px 18px 28px; }
   .d-head h2 { font-size: 1.9rem; }
   .d-actions .btn { flex: 1 1 100%; }
+  dialog.dlg-fallback[open] { top: auto; bottom: 0; left: 0; transform: none; }
 }
