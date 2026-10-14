@@ -173,61 +173,71 @@
       const a = el("a", "btn", "Apply on employer site"); a.href = raw; a.target = "_blank"; a.rel = "noopener";
       apply.appendChild(a);
     } else if (email) {
-      // [CHANGED] Many computers have no email app set up, so a plain mailto: link
-      // does nothing. We offer Gmail, Outlook and the email app, plus the address.
+      // Phones usually have a working email app, so it goes first there.
+      // Computers usually don't, so Gmail and Outlook go first. "Copy message" always works.
       const L = applyLinks(j, email);
+      const phone = /iPhone|iPad|Android/i.test(navigator.userAgent);
       apply.appendChild(el("h3", "", "Apply by email"));
       apply.appendChild(el("p", "apply-note",
-        "Pick where to write your email. The message is filled in. Add your details, attach your resume, then send."));
+        "Your message is written for you. Add your details, attach your resume, then send."));
       const opts = el("div", "apply-opts");
-      [["Gmail", L.gmail, true], ["Outlook", L.outlook, true], ["Email app", L.mailto, false]].forEach(([label, href, web]) => {
-        const b = el("a", "btn" + (label === "Email app" ? " ghost" : ""), label); b.href = href;
-        if (web) { b.target = "_blank"; b.rel = "noopener"; }
+      const web = [["Gmail", L.gmail, true], ["Outlook", L.outlook, true]];
+      const app = ["Email app", L.mailto, false];
+      (phone ? [app, ...web] : [...web, app]).forEach(([label, href, isWeb], i) => {
+        const b = el("a", "btn" + (i ? " ghost" : ""), label); b.href = href;
+        if (isWeb) { b.target = "_blank"; b.rel = "noopener"; }
         opts.appendChild(b);
       });
+      const copy = el("button", "btn ghost", "Copy message"); copy.type = "button";
+      copy.addEventListener("click", () => {
+        (navigator.clipboard ? navigator.clipboard.writeText(L.text) : Promise.reject())
+          .then(() => { copy.textContent = "Copied. Paste it into any email."; })
+          .catch(() => { copy.textContent = "Couldn't copy. Use the address below."; });
+      });
+      opts.appendChild(copy);
       apply.appendChild(opts);
-      const direct = el("p", "apply-note", "Or email ");
+      const direct = el("p", "apply-note", "Send to: ");
       const da = el("a", "", email); da.href = "mailto:" + email;
-      direct.appendChild(da); direct.appendChild(document.createTextNode(" directly."));
+      direct.appendChild(da);
       apply.appendChild(direct);
     } else if (applyLink(raw)) {
       const l = applyLink(raw), a = el("a", "btn", l.label); a.href = l.href; apply.appendChild(a);
     } else if (raw) {
       apply.appendChild(el("p", "meta", "To apply: " + raw));
     }
-    dlgBody.appendChild(apply);
+    dlgBody.insertBefore(apply, desc);   // [CHANGED] Apply sits above the description
   }
 
   // ---------- [NEW] The email the student sends ----------
   // EDIT THE WORDING HERE. Each line below becomes a line in the email.
   function applyLinks(j, to) {
     const role = j.Role || "the open role", biz = j.Business || "your business";
+    const subjectText = "Application for " + role + " at " + biz;
     const lines = [
-      "Hi,",
+      "Hello,",
       "",
-      "I'm a Stevens student and I'm interested in the " + role + " position at " + biz + ".",
+      "My name is [your name], and I'm a Stevens student interested in the " + role +
+        " position at " + biz + ". I found the listing on Around the Block.",
       "",
-      "Name:",
-      "Stevens email:",
-      "Phone number:",
-      "Class year and major:",
-      "Availability (days and hours):",
+      "About me:",
+      "- Class year and major:",
+      "- Phone number:",
       "",
-      "My resume is attached. Please attach it before sending.",
+      "My resume is attached. I'd welcome the chance to interview with you.",
+      "I'm generally available for an interview on:",
+      "- Days and times:",
       "",
-      "Thank you,",
-      "",
-      "",
-      "Sent through Around the Block"
+      "Thank you for your time,",
+      "[Your name]"
     ];
-    const subject = encodeURIComponent("Application: " + role + " at " + biz);
+    const subject = encodeURIComponent(subjectText);
     const body = encodeURIComponent(lines.join("\n"));
-    const bodyCRLF = encodeURIComponent(lines.join("\r\n"));
     const t = encodeURIComponent(to);
     return {
-      mailto: "mailto:" + to + "?subject=" + subject + "&body=" + bodyCRLF,
+      mailto: "mailto:" + to + "?subject=" + subject + "&body=" + encodeURIComponent(lines.join("\r\n")),
       gmail: "https://mail.google.com/mail/?view=cm&fs=1&to=" + t + "&su=" + subject + "&body=" + body,
-      outlook: "https://outlook.office.com/mail/deeplink/compose?to=" + t + "&subject=" + subject + "&body=" + body
+      outlook: "https://outlook.office.com/mail/deeplink/compose?to=" + t + "&subject=" + subject + "&body=" + body,
+      text: "To: " + to + "\nSubject: " + subjectText + "\n\n" + lines.join("\n")   // used by "Copy message"
     };
   }
 

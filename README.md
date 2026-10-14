@@ -39,7 +39,7 @@ Only put what students should see in this sheet. Keep private notes elsewhere.
 | `README.md` | This file |
 
 ## Changing the apply email wording
-Open `app.js` and find `applyMailto`. Edit the lines of text there.
+Open `app.js` and find `applyLinks`. Edit the lines of text there.
 
 ## Putting it online
 Settings -> Pages -> Source: **Deploy from a branch** -> Branch `main`, folder `/ (root)` -> Save.
