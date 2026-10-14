@@ -22,7 +22,7 @@ Part-time jobs at Hoboken businesses, a short walk from Stevens.
 | Walk | `4 min walk` (the number is used for "Closest to campus") |
 | Apply | The employer's email (best), a web link, or a phone number |
 | Posted | `2026-10-14` (or `10/14/2026`, or `10-14-2026`) |
-| Active | `Yes` or `No`. Blank = hidden |
+| Active | Type `No` to hide a job. Blank or `Yes` = shown |
 | Expires (optional) | Last day to show the job, e.g. `2026-11-30` or `12-1-2026`. It hides itself after that day |
 | Job Description | 2 to 5 sentences. Alt+Enter (Windows) / Cmd+Enter (Mac) in a cell starts a new paragraph |
 | ID (optional) | Short unique name for the job's link, e.g. `cafe-barista` |
@@ -63,3 +63,9 @@ Limit: this is not a hard lock. The employer emails are in the public sheet, so 
 
 ## After you upload new files
 In `index.html`, change the number in `?v=3` (three places) to `?v=4`, `?v=5`, and so on. This forces phones and computers to download the new files instead of using an old copy.
+
+## If a row you typed doesn't show: use the Sheet check
+Add `?check=1` to the end of the site address (example: `https://aroundtheblock-hoboken.github.io/?check=1`). A green box lists every row in the sheet and says "Showing" or "HIDDEN" with the reason (empty Role or Business, Active set to No, or past its Expires date). It also shows the end of the sheet link and which tab it reads.
+
+## If you made a new copy of the sheet
+The site reads ONE published sheet, set by `sheetCsvUrl` in `config.js`. A new or copied Google Sheet has a new link. Publish the new sheet (File -> Share -> Publish to web -> the jobs tab -> CSV), copy its link, and paste it into `config.js` in place of the old one.

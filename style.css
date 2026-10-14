@@ -137,3 +137,9 @@ dialog.dlg-fallback[open] { position: fixed; top: 50%; left: 50%; transform: tra
   .d-actions .btn { flex: 1 1 100%; }
   dialog.dlg-fallback[open] { top: auto; bottom: 0; left: 0; transform: none; }
 }
+
+/* Sheet check panel (only shows when ?check=1 is added to the address) */
+.check { background: var(--sage-light); border-radius: 14px; padding: 16px 20px; margin: 0 0 22px; }
+.check h3 { margin: 0 0 6px; }
+.check .meta { margin: 0 0 4px; font-size: 1rem; word-break: break-word; }
+.site-footer .fine { font-size: .9rem; max-width: 640px; margin: 8px auto 0; }

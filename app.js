@@ -54,7 +54,8 @@
     "closes": "Expires",
     "expiry": "Expires"
   });
-  let hasActiveColumn = false, hasRoleColumn = false;
+  let hasActiveColumn = false, hasRoleColumn = false, lastHead = [];
+  const checkMode = /[?&]check(=|&|$)/.test(location.search);   // add ?check=1 to the web address
 
   // ---------- CSV parser (same logic as before, plus header cleanup) ----------
   function parseCSV(text) {
@@ -74,6 +75,7 @@
     }
     if (cell || row.length) { row.push(cell); rows.push(row); }
     const head = (rows.shift() || []).map(h => CANON[h.trim().toLowerCase()] || h.trim()); // [CHANGED]
+    lastHead = head;
     hasActiveColumn = head.includes("Active");
     hasRoleColumn = head.includes("Role");
     return rows
@@ -81,12 +83,17 @@
       .map(r => Object.fromEntries(head.map((h, i) => [h, (r[i] || "").trim()])));
   }
 
-  // ---------- [CHANGED] Active check ----------
-  // Before: a blank Active cell meant "show it". Now it must say Yes.
-  // (If your sheet has no Active column at all, everything is shown.)
-  // [NEW] A job with an Expires date (e.g. 2026-11-30) disappears after that day.
+  // ---------- [CHANGED] Which rows show ----------
+  // A row shows when it has a Role and a Business, is not marked Active = No, and has not passed its Expires date.
+  // A blank Active cell now means "show" (type your row and it appears). To hide a job, type No.
   const isExpired = j => { const t = parseDate(j.Expires); return !!t && t + 864e5 <= Date.now(); };
-  const isActive = j => (!hasActiveColumn || /^(y|yes|true|1)$/i.test(j.Active || "")) && !isExpired(j);
+  function hideReason(j) {
+    if (!j.Role || !j.Business) return "Role or Business is empty";
+    if (hasActiveColumn && j.Active && !/^(y|yes|true|1)$/i.test(j.Active)) return 'Active says "' + j.Active + '" (type Yes to show it)';
+    if (isExpired(j)) return "Expired on " + j.Expires;
+    return "";
+  }
+  const isActive = j => !hideReason(j);
 
   // ---------- [NEW] Helpers ----------
   // Reads 2026-10-14 or 10/14/2026 (Google Sheets can publish either). Returns a number.
@@ -356,7 +363,28 @@
       shown.length + (shown.length === 1 ? " job" : " jobs") + " shown" + (updatedAt ? " · Updated " + updatedAt : "");
   }
 
+  // [NEW] Open the site with ?check=1 on the end (example: yoursite.github.io/?check=1) to see every
+  // row in the sheet and why each one is showing or hidden. Handy when a row doesn't appear.
+  function showCheck(data, errMsg) {
+    if (!checkMode) return;
+    const host = listEl.parentNode;
+    let box = document.getElementById("check-panel");
+    if (!box) { box = el("section", "check"); box.id = "check-panel"; if (host) host.insertBefore(box, listEl); }
+    setChildren(box, []);
+    box.appendChild(el("h3", "", "Sheet check"));
+    const add = t => box.appendChild(el("p", "meta", t));
+    const url = cfg.sheetCsvUrl || "";
+    add("Sheet link ends in: ..." + url.replace(/\?.*$/, "").slice(-10) + " (tab " + ((url.match(/gid=(\d+)/) || [])[1] || "unknown") + ")");
+    if (errMsg) { add("Could not read the sheet: " + errMsg); return; }
+    add("Columns found: " + lastHead.filter(Boolean).join(", "));
+    const need = ["Role","Business","Location","Type","Hours","Pay","Walk","Apply","Posted"].filter(c => lastHead.indexOf(c) < 0);
+    if (need.length) add("Missing columns (add them to row 1): " + need.join(", "));
+    add(data.length + " rows read. Showing " + data.filter(isActive).length + ".");
+    data.forEach(j => add((j.Business || "(no business)") + " / " + (j.Role || "(no role)") + ": " + (hideReason(j) ? "HIDDEN. " + hideReason(j) : "Showing")));
+  }
+
   function setup(data) {
+    showCheck(data);
     const seen = {};
     jobs = data.filter(isActive).map(j => {                  // [NEW] give every job a link ID
       let id = j.ID ? slug(j.ID) : slug((j.Business || "") + "-" + (j.Role || "job"));
@@ -407,6 +435,7 @@
       })
       .catch(err => {
         console.error("Around the Block: could not load the sheet.", err);   // team: see this in the browser console
+        showCheck([], err.message);
         if (silent) return;                                                    // quiet refresh: keep what's on screen
         const old = savedCopy();
         if (old) {
