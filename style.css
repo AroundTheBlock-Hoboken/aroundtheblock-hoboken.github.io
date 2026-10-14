@@ -84,6 +84,8 @@ nav a:hover { color: var(--coral-dark); }
 }
 .card .btn { margin-top: auto; text-align: center; }
 .card .spacer { flex: 1; min-height: 14px; }
+.card .resume-note { font-size: 0.95rem; color: var(--muted); margin: 10px 0 0; text-align: center; line-height: 1.35; }
+.card .resume-note::before { content: "Tip: "; font-weight: 700; color: var(--coral-dark); }
 .card .posted { color: var(--muted); font-size: 0.95rem; margin: 10px 0 0; text-align: center; }
 .empty { text-align: center; color: var(--muted); grid-column: 1 / -1; }
 

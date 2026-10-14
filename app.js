@@ -37,11 +37,43 @@
 
   const isActive = j => !j.Active || /^(y|yes|true|1)$/i.test(j.Active);
 
-  function applyLink(value) {
-    if (/^https?:\/\//i.test(value)) return { href: value, label: "Apply" };
-    if (/@/.test(value)) return { href: "mailto:" + value, label: "Email to apply" };
+  // Pre-written email so the business knows the student found them on Around the Block.
+  function emailBody(j) {
+    const role = j.Role || "the open position";
+    const biz = j.Business || "your business";
+    return [
+      "Hi,",
+      "",
+      "I'm a Stevens Institute of Technology student and I found your " + role + " listing on Around the Block. I'd love to be considered for the role.",
+      "",
+      "Name: ",
+      "Year and major: ",
+      "Days and times I'm available: ",
+      "Relevant experience (if any): ",
+      "",
+      "I've attached my resume. I'd be happy to come in for an interview at a time that works for you.",
+      "",
+      "Thank you,",
+      "",
+      "",
+      "---",
+      "Sent via Around the Block, part-time jobs for Stevens students: " + location.href.split("#")[0]
+    ].join("\n");
+  }
+
+  function applyLink(j) {
+    const value = j.Apply || "";
+    if (/^https?:\/\//i.test(value)) return { href: value, label: "Apply", note: "Have your resume ready to upload." };
+    if (/@/.test(value)) {
+      const subject = "Around the Block application: " + (j.Role || "Open position") + (j.Business ? " at " + j.Business : "");
+      return {
+        href: "mailto:" + value + "?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(emailBody(j)),
+        label: "Email to apply",
+        note: "Opens a pre-written email. Fill in your details and attach your resume before sending."
+      };
+    }
     const digits = value.replace(/[^\d+]/g, "");
-    if (digits.length >= 10) return { href: "tel:" + digits, label: "Call to apply" };
+    if (digits.length >= 10) return { href: "tel:" + digits, label: "Call to apply", note: "Mention you found the job on Around the Block, and bring a printed resume to the interview." };
     return null;
   }
 
@@ -62,15 +94,16 @@
     if (j.Pay) c.appendChild(el("p", "meta pay", j.Pay));
     if (j.Walk) c.appendChild(el("p", "meta", j.Walk + " from campus"));
     c.appendChild(el("div", "spacer"));
-    const link = j.Apply ? applyLink(j.Apply) : null;
+    const link = j.Apply ? applyLink(j) : null;
     if (link) {
       const a = el("a", "btn", link.label);
       a.href = link.href;
       if (link.href.startsWith("http")) { a.target = "_blank"; a.rel = "noopener"; }
       a.setAttribute("aria-label", link.label + ": " + (j.Role || "") + " at " + (j.Business || ""));
       c.appendChild(a);
+      c.appendChild(el("p", "resume-note", link.note));
     }
-    if (j.Apply && !link) c.appendChild(el("p", "meta", "To apply: " + j.Apply));
+    if (j.Apply && !link) { c.appendChild(el("p", "meta", "To apply: " + j.Apply)); c.appendChild(el("p", "resume-note", "Mention Around the Block and bring your resume.")); }
     if (j.Posted) c.appendChild(el("p", "posted", "Posted " + j.Posted));
     return c;
   }
