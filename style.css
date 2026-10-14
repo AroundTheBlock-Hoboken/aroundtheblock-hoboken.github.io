@@ -63,7 +63,6 @@ nav a:hover { color: var(--coral-dark); }
 .pay { font-weight: 700; }
 .tags { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }        /* [NEW] */
 .tag { background: var(--sage-light); color: #3F5434; border-radius: 999px; padding: 2px 12px; font-size: .95rem; }
-.tag.new { background: var(--coral); color: var(--ink); font-weight: 700; }     /* [NEW] "New" badge */
 .preview { color: var(--muted); font-size: 1.05rem; margin: 8px 0 0; }          /* [NEW] description preview */
 .card .btn { margin-top: auto; }
 .card .spacer { flex: 1; min-height: 14px; }
@@ -111,3 +110,8 @@ dialog::backdrop { background: rgba(31,36,71,.55); }
   .d-inner { padding: 24px 18px; }                                              /* [NEW] */
   .d-actions .btn { flex: 1 1 100%; }
 }
+
+.d-apply { margin-top: 22px; }
+
+/* [NEW] Apply button area in the job window */
+.apply-note { color: var(--muted); font-size: 1rem; margin: 10px 0 0; max-width: 62ch; }

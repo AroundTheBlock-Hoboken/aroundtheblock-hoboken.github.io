@@ -77,7 +77,6 @@
     const t = Date.parse(s); return isNaN(t) ? 0 : t;
   }
   const walkMinutes = s => { const m = (s || "").match(/\d+/); return m ? +m[0] : 999; };
-  const isNew = j => { const t = parseDate(j.Posted); return t && Date.now() - t < 7 * 864e5; };
   const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   const paragraphs = text => text.split(/\n+/).map(p => p.trim()).filter(Boolean);
 
@@ -110,7 +109,6 @@
 
     const tags = el("div", "tags");                          // [NEW] tag row
     if (j.Type) tags.appendChild(el("span", "tag", j.Type));
-    if (isNew(j)) tags.appendChild(el("span", "tag new", "New")); // [NEW] "New" badge
     if (tags.childNodes.length) c.appendChild(tags);
 
     if (j.Hours) c.appendChild(el("p", "meta", j.Hours));
@@ -142,7 +140,6 @@
     if (where) head.appendChild(el("p", "where", where));
     const tags = el("div", "tags");
     if (j.Type) tags.appendChild(el("span", "tag", j.Type));
-    if (isNew(j)) tags.appendChild(el("span", "tag new", "New"));
     if (tags.childNodes.length) head.appendChild(tags);
     dlgBody.appendChild(head);
 
@@ -163,24 +160,54 @@
     else desc.appendChild(el("p", "meta", "No description yet. Contact the business to ask about the role."));
     dlgBody.appendChild(desc);
 
-    // Buttons: Apply + Copy link
-    const actions = el("div", "d-actions");
-    const link = j.Apply ? applyLink(j.Apply) : null;
-    if (link) {
-      const a = el("a", "btn", link.label); a.href = link.href;
-      if (link.href.startsWith("http")) { a.target = "_blank"; a.rel = "noopener"; }
-      actions.appendChild(a);
-    } else if (j.Apply) {
-      actions.appendChild(el("p", "meta", "To apply: " + j.Apply));
+    // [CHANGED] Apply area. One button, no form.
+    // - Email in the sheet -> "Apply by email" opens the student's email app with a ready-made message
+    // - Web link in sheet  -> button that opens the employer's application page
+    // - Phone in sheet     -> "Call to apply" button
+    // - Anything else      -> shown as plain text instructions
+    const apply = el("section", "d-apply");
+    const raw = (j.Apply || "").trim();
+    const email = (raw.match(/[^\s,;<>()]+@[^\s,;<>()]+\.[^\s,;<>()]+/) || [])[0];
+    if (/^https?:\/\//i.test(raw)) {
+      const a = el("a", "btn", "Apply on employer site"); a.href = raw; a.target = "_blank"; a.rel = "noopener";
+      apply.appendChild(a);
+    } else if (email) {
+      const a = el("a", "btn", "Apply by email"); a.href = applyMailto(j, email);
+      apply.appendChild(a);
+      apply.appendChild(el("p", "apply-note",
+        "Opens your email app with a message ready to fill in. Add your details, attach your resume, then press send."));
+    } else if (applyLink(raw)) {
+      const l = applyLink(raw), a = el("a", "btn", l.label); a.href = l.href; apply.appendChild(a);
+    } else if (raw) {
+      apply.appendChild(el("p", "meta", "To apply: " + raw));
     }
-    const copy = el("button", "btn ghost", "Copy link"); copy.type = "button";
-    copy.addEventListener("click", () => {
-      (navigator.clipboard ? navigator.clipboard.writeText(location.href) : Promise.reject())
-        .then(() => { copy.textContent = "Link copied"; })
-        .catch(() => { copy.textContent = "Copy the address bar link"; });
-    });
-    actions.appendChild(copy);
-    dlgBody.appendChild(actions);
+    dlgBody.appendChild(apply);
+  }
+
+  // ---------- [NEW] The email the student sends ----------
+  // EDIT THE WORDING HERE. Each line below becomes a line in the email.
+  function applyMailto(j, to) {
+    const role = j.Role || "the open role", biz = j.Business || "your business";
+    const body = [
+      "Hi,",
+      "",
+      "I'm a Stevens student and I'm interested in the " + role + " position at " + biz + ".",
+      "",
+      "Name:",
+      "Stevens email:",
+      "Phone number:",
+      "Class year and major:",
+      "Availability (days and hours):",
+      "",
+      "My resume is attached. Please attach it before sending.",
+      "",
+      "Thank you,",
+      "",
+      "",
+      "Sent through Around the Block"
+    ].join("\r\n");
+    return "mailto:" + to + "?subject=" + encodeURIComponent("Application: " + role + " at " + biz) +
+      "&body=" + encodeURIComponent(body);
   }
 
   // Opens/closes the window based on the URL (#job=...). This makes each job
