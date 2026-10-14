@@ -128,6 +128,36 @@
     return e;
   }
 
+  // [NEW] Small line icons (drawn in code, so they look the same on every phone and computer)
+  const ICONS = {
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    coin:  '<circle cx="12" cy="12" r="9"/><path d="M14.5 9.2c-.4-.8-1.3-1.2-2.5-1.2-1.5 0-2.5.7-2.5 1.8s1 1.5 2.5 1.8 2.5.8 2.5 1.9-1 1.8-2.5 1.8c-1.2 0-2.2-.4-2.6-1.3M12 6.5V8m0 8v1.5"/>',
+    pin:   '<path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>',
+    cal:   '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>'
+  };
+  function row(iconName, text, cls) {
+    const p = el("p", "meta row" + (cls ? " " + cls : ""));
+    const i = el("span", "ico"); i.setAttribute("aria-hidden", "true");
+    i.innerHTML = '<svg viewBox="0 0 24 24" focusable="false">' + ICONS[iconName] + "</svg>";
+    p.appendChild(i); p.appendChild(el("span", "", text));
+    return p;
+  }
+
+  // [NEW] Copies text on any device (new browsers first, older Safari as a backup). Returns a Promise of true/false.
+  function legacyCopy(t) {
+    const ta = el("textarea"); ta.value = t; ta.setAttribute("readonly", "");
+    ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    try { ta.setSelectionRange(0, t.length); } catch (e) {}
+    let ok = false; try { ok = document.execCommand("copy"); } catch (e) {}
+    document.body.removeChild(ta); return ok;
+  }
+  function copyText(t) {
+    if (navigator.clipboard && navigator.clipboard.writeText)
+      return navigator.clipboard.writeText(t).then(() => true, () => legacyCopy(t));
+    return Promise.resolve(legacyCopy(t));
+  }
+
   // ---------- Job card (the clickable summary) ----------
   function card(j) {
     const c = el("article", "card");
@@ -147,9 +177,10 @@
     if (j.Type) tags.appendChild(el("span", "tag", j.Type));
     if (tags.childNodes.length) c.appendChild(tags);
 
-    if (j.Hours) c.appendChild(el("p", "meta", j.Hours));
-    if (j.Pay) c.appendChild(el("p", "meta pay", j.Pay));
-    if (j.Walk) c.appendChild(el("p", "meta", j.Walk + " from campus"));
+    if (j.Hours) c.appendChild(row("clock", j.Hours));
+    if (j.Pay) c.appendChild(row("coin", j.Pay, "pay"));
+    if (j.Walk) c.appendChild(row("pin", j.Walk + " from campus"));
+    if (parseDate(j.Expires)) c.appendChild(row("cal", "Apply by " + fmtDate(j.Expires)));   // [NEW] shows the sheet's Expires date
     c.appendChild(el("div", "spacer"));
     const more = el("a", "btn", "View details");             // [CHANGED] main button opens details
     more.href = "#job=" + j._id;
@@ -178,7 +209,8 @@
     // Facts grid: only shows rows that have a value
     const facts = el("dl", "facts");
     [["Hours", j.Hours], ["Pay", j.Pay],
-     ["Distance", j.Walk && j.Walk + " from campus"], ["Posted", j.Posted && fmtDate(j.Posted)]].forEach(([k, v]) => {
+     ["Distance", j.Walk && j.Walk + " from campus"], ["Posted", j.Posted && fmtDate(j.Posted)],
+     ["Apply By", parseDate(j.Expires) ? fmtDate(j.Expires) : ""]].forEach(([k, v]) => {
       if (!v) return;
       const box = el("div"); box.appendChild(el("dt", "", k)); box.appendChild(el("dd", "", v));
       facts.appendChild(box);
@@ -204,23 +236,40 @@
       const a = el("a", "btn", "Apply on employer site"); a.href = raw; a.target = "_blank"; a.rel = "noopener";
       apply.appendChild(a);
     } else if (email) {
-      // [CHANGED] STEVENS ONLY: every device uses Outlook, which sends students through the
-      // Stevens (Okta) sign-in. The employer then sees an @stevens.edu sender.
-      // Gmail and generic "email app" options were removed on purpose.
-      const L = emailLinks(j, email);
+      // [CHANGED] STEVENS ONLY, built to work on every device.
+      // - Computers: opens a new email in Outlook on the web (Stevens/Okta sign-in).
+      // - Phones: opens the Outlook app (it fills in the message); a browser link sits right under it.
+      // - On any device the message is also copied automatically and shown below, so if an
+      //   email opens blank the student can just paste it. This makes the template foolproof.
+      const L = emailLinks(j, email), phone = isPhone();
       apply.appendChild(el("h3", "", "Stevens students only"));
-      const go = el("a", "btn", "Apply with Stevens Outlook"); go.href = L.outlook;
-      go.target = "_blank"; go.rel = "noopener";
+      const go = el("a", "btn", phone ? "Apply in Outlook app" : "Apply with Stevens Outlook");
+      go.href = phone ? L.app : L.outlook;
+      if (!phone) { go.target = "_blank"; go.rel = "noopener"; }
       go.setAttribute("aria-label", "Apply for " + (j.Role || "this job") + " at " + (j.Business || "this business") + " with Stevens Outlook");
       apply.appendChild(go);
-      apply.appendChild(el("p", "apply-note",
-        "Sign in with your Stevens account. The email is written for you. Add your details, attach your resume, then send. Employers will see your @stevens.edu address."));
-      if (isPhone()) {
-        const help = el("p", "apply-note", "Have the Outlook app? ");
-        const x = el("a", "linklike", "Open it there instead"); x.href = L.app;
-        help.appendChild(x); help.appendChild(document.createTextNode("."));
-        apply.appendChild(help);
+      const note = el("p", "apply-note",
+        "Sign in with your Stevens account. Add your details, attach your resume, then send. Employers will see your @stevens.edu address.");
+      note.setAttribute("aria-live", "polite");
+      apply.appendChild(note);
+      go.addEventListener("click", () => {
+        copyText(L.text).then(ok => { if (ok) note.textContent = "Message copied. If your email opens blank, just paste it in."; });
+      });
+      if (phone) {
+        const alt = el("p", "apply-note", "No Outlook app? ");
+        const x = el("a", "linklike", "Open Outlook in your browser"); x.href = L.outlook; x.target = "_blank"; x.rel = "noopener";
+        alt.appendChild(x); alt.appendChild(document.createTextNode("."));
+        apply.appendChild(alt);
       }
+      const det = el("details", "msg-preview");
+      det.appendChild(el("summary", "", "See the message we write for you"));
+      det.appendChild(el("pre", "", L.text));
+      const cp = el("button", "btn ghost small", "Copy message"); cp.type = "button";
+      cp.addEventListener("click", () => {
+        copyText(L.text).then(ok => { cp.textContent = ok ? "Copied" : "Press and hold the text to copy"; });
+      });
+      det.appendChild(cp);
+      apply.appendChild(det);
     } else if (applyLink(raw)) {
       const l = applyLink(raw), a = el("a", "btn", l.label); a.href = l.href; apply.appendChild(a);
     } else if (raw) {
@@ -258,7 +307,8 @@
     const body = encodeURIComponent(lines.join("\n"));
     return {
       outlook: "https://outlook.office.com/mail/deeplink/compose?to=" + encodeURIComponent(to) + "&" + q + "&body=" + body,
-      app: "ms-outlook://compose?to=" + encodeURIComponent(to) + "&" + q + "&body=" + body   // Outlook phone app
+      app: "ms-outlook://compose?to=" + encodeURIComponent(to) + "&" + q + "&body=" + body,   // Outlook phone app
+      text: "To: " + to + "\nSubject: " + subject + "\n\n" + lines.join("\n")               // shown and copied
     };
   }
 
@@ -303,7 +353,7 @@
       listEl.appendChild(box);
     }
     statusEl.textContent = (cfg.sheetCsvUrl ? "" : "Example listings. ") +
-      shown.length + (shown.length === 1 ? " job" : " jobs") + " shown";
+      shown.length + (shown.length === 1 ? " job" : " jobs") + " shown" + (updatedAt ? " · Updated " + updatedAt : "");
   }
 
   function setup(data) {
@@ -339,24 +389,42 @@
     return data;
   }
 
-  function load() {
+  // [NEW] Shows "Updated 4:41 PM" and refreshes by itself every minute (and when you come back to the tab),
+  // so a row typed into the sheet appears without anyone reloading the page.
+  let lastText = null, updatedAt = null;
+  const stamp = () => new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+
+  function load(silent) {
     if (!cfg.sheetCsvUrl) { setup(cfg.exampleJobs || []); return; }
-    statusEl.textContent = "Loading jobs…";
+    if (!silent) statusEl.textContent = "Loading jobs…";
     const url = cfg.sheetCsvUrl + (cfg.sheetCsvUrl.includes("?") ? "&" : "?") + "t=" + Date.now();
     fetch(url, { cache: "no-store" })
       .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
-      .then(t => { const data = readCSV(t); saveCopy(t); setup(data); })
+      .then(t => {
+        const data = readCSV(t); saveCopy(t); updatedAt = stamp();
+        if (silent && (t === lastText || isOpen())) { return; }   // nothing new, or someone is reading a job: don't disturb
+        lastText = t; setup(data);
+      })
       .catch(err => {
         console.error("Around the Block: could not load the sheet.", err);   // team: see this in the browser console
+        if (silent) return;                                                    // quiet refresh: keep what's on screen
         const old = savedCopy();
         if (old) {
           try { setup(readCSV(old)); statusEl.textContent += " (saved copy, couldn't reach the sheet)"; return; } catch (e) {}
         }
         statusEl.textContent = "Couldn't load jobs. Check your connection and try again.";
         const box = el("div", "empty"), b = el("button", "btn", "Try again"); b.type = "button";
-        b.addEventListener("click", load); box.appendChild(b);
+        b.addEventListener("click", () => load()); box.appendChild(b);
         setChildren(listEl, [box]);
       });
   }
+  const refreshBtn = $("refresh");
+  if (refreshBtn) refreshBtn.addEventListener("click", () => {
+    refreshBtn.textContent = "Refreshing…";
+    lastText = null; load(true);
+    setTimeout(() => { refreshBtn.textContent = "Refresh listings"; }, 1500);
+  });
+  setInterval(() => { if (!document.hidden) load(true); }, 60000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) load(true); });
   load();
 })();

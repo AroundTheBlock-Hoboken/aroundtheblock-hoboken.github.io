@@ -11,10 +11,11 @@
   <meta property="og:image" content="logo.png">
   <meta name="theme-color" content="#F9F6F5">
   <link rel="icon" href="mascot.png">
+  <link rel="apple-touch-icon" href="mascot.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
   <a class="skip" href="#jobs">Skip to job listings</a>
@@ -38,6 +39,11 @@
         <h1>Part-time jobs, <em>around the block</em> from Stevens</h1>
         <p class="lead">Coffee shops, restaurants and stores in Hoboken that want to hire Stevens students. Shifts that fit around your classes, a few minutes' walk from campus.</p>
         <a class="btn" href="#jobs">See open jobs</a>
+        <ul class="trust">
+          <li>For Stevens students only</li>
+          <li>A short walk from campus</li>
+          <li>Free for businesses</li>
+        </ul>
       </div>
     </section>
 
@@ -63,7 +69,10 @@
           </label>
         </div>
 
-        <p id="status" class="status" role="status" aria-live="polite">Loading jobs…</p>
+        <div class="status-row">
+          <p id="status" class="status" role="status" aria-live="polite">Loading jobs…</p>
+          <button type="button" id="refresh" class="linklike">Refresh listings</button>
+        </div>
         <noscript><p class="status">Turn on JavaScript to see the job listings.</p></noscript>
         <div id="list" class="grid"></div>
       </div>
@@ -114,7 +123,7 @@
     </div>
   </dialog>
 
-  <script src="config.js"></script>
-  <script src="app.js"></script>
+  <script src="config.js?v=3"></script>
+  <script src="app.js?v=3"></script>
 </body>
 </html>

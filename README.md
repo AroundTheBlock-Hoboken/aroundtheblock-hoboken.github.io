@@ -4,8 +4,8 @@ Part-time jobs at Hoboken businesses, a short walk from Stevens.
 
 ## How the site works
 - Every row of the Google Sheet with `Active` = `Yes` becomes a job card.
-- Click a card to see the full job description and an **Apply by email** button.
-- The button opens the student's email app with a message to the employer already written (name, Stevens email, phone, availability). The student adds their details, attaches a resume and sends.
+- Click a card to see the full job description and the Stevens-only **Apply** button.
+- Apply opens Outlook with a message to the employer already written. The message is also copied automatically and shown in the window, so if an email ever opens blank the student can paste it.
 - To **add a job**, add a row. To **remove a filled job**, set `Active` to `No`.
 - Sheet changes show up on the site within about 5 minutes. No code changes needed.
 
@@ -54,3 +54,12 @@ Settings -> Pages -> Source: **Deploy from a branch** -> Branch `main`, folder `
 ## Stevens-only applying (how it works today)
 The Apply button opens a new email in **Outlook on the web**, which sends students through the Stevens (Okta) sign-in. The employer sees the @stevens.edu sender address. Gmail and other email options were removed on purpose.
 Limit: this is not a hard lock. The employer emails are in the public sheet, so anyone could email them directly. A true lock needs Stevens IT to register an Okta app and a small server that sends the emails.
+
+## Live demo for a business interview
+1. Open the Google Sheet and add a row (Role, Business, Location, Type, Hours, Pay, Walk, Apply, Posted, Active = `Yes`, Job Description).
+2. Google takes up to about 5 minutes to publish sheet changes. The site checks again every minute by itself, and the **Refresh listings** link checks right away.
+3. The line above the cards shows "Updated" with the time of the last check.
+4. Tip: add the row a few minutes before you show it. To remove a job, set `Active` to `No`.
+
+## After you upload new files
+In `index.html`, change the number in `?v=3` (three places) to `?v=4`, `?v=5`, and so on. This forces phones and computers to download the new files instead of using an old copy.
