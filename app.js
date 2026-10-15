@@ -36,8 +36,29 @@
   // and the address is always shown on the page so nobody gets stuck.
   (function () {
     const to = cfg.contactEmail || "";
-    const subject = "Post a job on Around the Block";
-    const body = "Hello,\n\nWe'd like to post a job on Around the Block.\n\nBusiness name:\nRole:\nHours:\nShort description:\nWho students should contact:\n\nThank you,";
+    const subject = "Job Listing Request for Around the Block";
+    const body = [
+      "Hello Around the Block Team,",
+      "",
+      "We would like to post a part-time job for Stevens students. Our details are below.",
+      "",
+      "Business name:",
+      "Business type (coffee shop, restaurant, retail, etc.):",
+      "Address:",
+      "",
+      "Job title:",
+      "Hours / shifts (days and times, e.g. Weekends 8am-2pm):",
+      "Experience needed (or \"None\"):",
+      "Short description of the job (2 to 3 sentences):",
+      "",
+      "Email address students should send applications to:",
+      "Last day to apply (optional):",
+      "",
+      "Your name and role at the business:",
+      "Phone number (optional):",
+      "",
+      "Thank you,"
+    ].join("\n");
     const phone = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
     const q = "to=" + encodeURIComponent(to) + "&subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
     const plain = "mailto:" + to + "?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
