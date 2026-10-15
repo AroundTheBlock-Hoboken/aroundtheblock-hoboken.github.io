@@ -155,6 +155,8 @@
     if (days > 1 && days < 14) return days + " Days Ago";
     return new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   }
+  // [NEW] A "Posted" date in the future is ignored (no date shown, not used for sorting).
+  const postedTime = j => { const t = parseDate(j.Posted); return t && t <= Date.now() + 864e5 ? t : 0; };
   const walkMinutes = s => { const m = (s || "").match(/\d+/); return m ? +m[0] : 999; };
   const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   const paragraphs = text => text.split(/\n+/).map(p => p.trim()).filter(Boolean);
@@ -279,7 +281,6 @@
     more.href = "#job=" + j._id;
     more.setAttribute("aria-label", "View details: " + (j.Role || "") + " at " + (j.Business || ""));
     c.appendChild(more);
-    if (j.Posted) c.appendChild(el("p", "posted", "Posted " + fmtDate(j.Posted)));
 
     // [NEW] Clicking anywhere on the card opens it (links inside still work normally)
     c.addEventListener("click", e => { if (!e.target.closest("a, button")) location.hash = "job=" + j._id; });
@@ -302,7 +303,7 @@
     // Facts grid: only shows rows that have a value
     const facts = el("dl", "facts");
     [["Hours", j.Hours],
-     ["Distance", j.Walk && j.Walk + " from campus"], ["Posted", j.Posted && fmtDate(j.Posted)],
+     ["Distance", j.Walk && j.Walk + " from campus"], ["Posted", postedTime(j) ? fmtDate(j.Posted) : ""],
      ["Apply By", parseDate(j.Expires) ? fmtDate(j.Expires) : ""]].forEach(([k, v]) => {
       if (!v) return;
       const box = el("div"); box.appendChild(el("dt", "", k)); box.appendChild(el("dd", "", v));
@@ -322,6 +323,12 @@
     if (j.Description) paragraphs(j.Description).forEach(p => desc.appendChild(el("p", "", p)));
     else desc.appendChild(el("p", "meta", "No description yet. Contact the business to ask about the role."));
     dlgBody.appendChild(desc);
+    // [NEW] Directions: opens Google Maps (or the Maps app) to the business
+    const dirQ = [j.Business, j.Location, "Hoboken NJ"].filter(Boolean).join(" ");
+    const dirP = el("p", "meta site"), dirA = el("a", "", "Get Directions");
+    dirA.href = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(dirQ);
+    dirA.target = "_blank"; dirA.rel = "noopener noreferrer";
+    dirP.appendChild(dirA); dlgBody.appendChild(dirP);
     const site = safeUrl(j.Website);                           // [NEW] optional Website column
     if (site) {
       const p = el("p", "meta site"), a = el("a", "", "Visit " + j.Business + " Website");
@@ -353,7 +360,7 @@
       go.setAttribute("aria-label", "Apply for " + (j.Role || "this job") + " at " + (j.Business || "this business") + " with Stevens Outlook");
       apply.appendChild(go);
       const note = el("p", "apply-note",
-        "Sign in with your Stevens account. Add your details, attach your resume, then send. Employers will see your @stevens.edu address.");
+        "Sign in with your Stevens account. Add your details, attach your resume, then send. Replies come to your Stevens inbox, so check it after you apply.");
       note.setAttribute("aria-live", "polite");
       apply.appendChild(note);
       go.addEventListener("click", () => {
@@ -448,7 +455,7 @@
     // [NEW] Sorting
     shown.sort(s === "close"
       ? (a, b) => walkMinutes(a.Walk) - walkMinutes(b.Walk)
-      : (a, b) => parseDate(b.Posted) - parseDate(a.Posted));
+      : (a, b) => postedTime(b) - postedTime(a));
 
     setChildren(listEl, shown.map(card));
     if (!shown.length) {
