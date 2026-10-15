@@ -168,3 +168,6 @@ dialog.dlg-fallback[open] { position: fixed; top: 50%; left: 50%; transform: tra
 .stats strong { display: block; font-size: 2.2rem; color: var(--coral-dark); line-height: 1.1; }
 .stats span { font-size: 1.05rem; color: var(--muted); }
 @media (max-width: 640px) { .stats { grid-template-columns: 1fr; } }
+.foot-title { font-style: italic; font-size: 1.5rem; margin: 0 0 14px; color: var(--ink); }
+.site-footer .addr-line { margin: 12px 0 4px; }
+.site-footer .foot-small { margin-top: 18px; font-size: .95rem; }
