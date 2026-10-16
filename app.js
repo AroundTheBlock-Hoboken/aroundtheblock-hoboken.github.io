@@ -157,6 +157,13 @@
   }
   // [NEW] A "Posted" date in the future is ignored (no date shown, not used for sorting).
   const postedTime = j => { const t = parseDate(j.Posted); return t && t <= Date.now() + 864e5 ? t : 0; };
+  // [NEW] Pay: type it in the sheet however you like ("$18/hr", "18", "$17-20 + tips").
+  // A bare number like 18 or 18.5 becomes "$18/hr"; anything else is shown exactly as typed.
+  function fmtPay(s) {
+    s = (s || "").trim();
+    if (/^\$?\d+(\.\d{1,2})?$/.test(s)) return "$" + s.replace(/^\$/, "") + "/hr";
+    return s;
+  }
   const walkMinutes = s => { const m = (s || "").match(/\d+/); return m ? +m[0] : 999; };
   const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   const paragraphs = text => text.split(/\n+/).map(p => p.trim()).filter(Boolean);
@@ -273,6 +280,7 @@
     if (j.Type) tags.appendChild(el("span", "tag", j.Type));
     if (tags.childNodes.length) c.appendChild(tags);
 
+    if (j.Pay) c.appendChild(row("coin", fmtPay(j.Pay), "pay"));   // [NEW] pay from the sheet's Pay column
     if (j.Hours) c.appendChild(row("clock", j.Hours));
     if (j.Walk) c.appendChild(row("pin", j.Walk + " from campus"));
     if (parseDate(j.Expires)) c.appendChild(row("cal", "Apply by " + fmtDate(j.Expires)));   // [NEW] shows the sheet's Expires date
@@ -302,7 +310,7 @@
 
     // Facts grid: only shows rows that have a value
     const facts = el("dl", "facts");
-    [["Hours", j.Hours],
+    [["Pay", j.Pay && fmtPay(j.Pay)], ["Hours", j.Hours],   // [NEW] Pay shown first
      ["Distance", j.Walk && j.Walk + " from campus"], ["Posted", postedTime(j) ? fmtDate(j.Posted) : ""],
      ["Apply By", parseDate(j.Expires) ? fmtDate(j.Expires) : ""]].forEach(([k, v]) => {
       if (!v) return;
@@ -347,30 +355,39 @@
       const a = el("a", "btn", "Apply on employer site"); a.href = raw; a.target = "_blank"; a.rel = "noopener";
       apply.appendChild(a);
     } else if (email) {
-      // [CHANGED] STEVENS ONLY, built to work on every device.
-      // - Computers: opens a new email in Outlook on the web (Stevens/Okta sign-in).
-      // - Phones: opens the Outlook app (it fills in the message); a browser link sits right under it.
-      // - On any device the message is also copied automatically and shown below, so if an
-      //   email opens blank the student can just paste it. This makes the template foolproof.
+      // [CHANGED] Main button opens the device's own Mail app (Apple Mail on iPhone/Mac, the default
+      // mail app elsewhere). Underneath: Outlook and Gmail links for anyone whose Mail app isn't set up
+      // (common on Android and Windows). The message is also copied on click and shown below, so if an
+      // email ever opens blank the student can just paste it in.
       const L = emailLinks(j, email), phone = isPhone();
       apply.appendChild(el("h3", "", "Stevens students only"));
-      const go = el("a", "btn", phone ? "Apply in Outlook app" : "Apply with Stevens Outlook");
-      go.href = phone ? L.app : L.outlook;
-      if (!phone) { go.target = "_blank"; go.rel = "noopener"; }
-      go.setAttribute("aria-label", "Apply for " + (j.Role || "this job") + " at " + (j.Business || "this business") + " with Stevens Outlook");
+      const go = el("a", "btn", "Apply by Email");
+      go.href = L.mail;
+      go.setAttribute("aria-label", "Apply for " + (j.Role || "this job") + " at " + (j.Business || "this business") + " by email");
       apply.appendChild(go);
       const note = el("p", "apply-note",
-        "Sign in with your Stevens account. Add your details, attach your resume, then send. Replies come to your Stevens inbox, so check it after you apply.");
+        "Opens your Mail app with the message ready. Add your details, attach your resume, then send. Use your Stevens email if you can.");
       note.setAttribute("aria-live", "polite");
       apply.appendChild(note);
-      go.addEventListener("click", () => {
+      const copyOnClick = a => a.addEventListener("click", () => {
         copyText(L.text).then(ok => { if (ok) note.textContent = "Message copied. If your email opens blank, just paste it in."; });
       });
-      if (phone) {
-        const alt = el("p", "apply-note", "No Outlook app? ");
+      copyOnClick(go);
+      // [NEW] Other ways to send: Outlook (app on phones, web on computers) and Gmail (web)
+      const alt = el("p", "apply-note apply-alt", "Mail app not working? Use ");
+      const ol = el("a", "linklike", "Outlook"); ol.href = phone ? L.app : L.outlook;
+      if (!phone) { ol.target = "_blank"; ol.rel = "noopener"; }
+      const gm = el("a", "linklike", "Gmail"); gm.href = L.gmail; gm.target = "_blank"; gm.rel = "noopener";
+      copyOnClick(ol); copyOnClick(gm);
+      alt.appendChild(ol); alt.appendChild(document.createTextNode(" or ")); alt.appendChild(gm);
+      alt.appendChild(document.createTextNode("."));
+      apply.appendChild(alt);
+      if (phone) {   // Outlook app might not be installed: offer Outlook on the web too
+        const web = el("p", "apply-note", "No Outlook app? ");
         const x = el("a", "linklike", "Open Outlook in your browser"); x.href = L.outlook; x.target = "_blank"; x.rel = "noopener";
-        alt.appendChild(x); alt.appendChild(document.createTextNode("."));
-        apply.appendChild(alt);
+        copyOnClick(x);
+        web.appendChild(x); web.appendChild(document.createTextNode("."));
+        apply.appendChild(web);
       }
       const det = el("details", "msg-preview");
       det.appendChild(el("summary", "", "See the message we write for you"));
@@ -418,6 +435,9 @@
     const q = "subject=" + encodeURIComponent(subject);
     const body = encodeURIComponent(lines.join("\n"));
     return {
+      mail: "mailto:" + to + "?" + q + "&body=" + body,                                       // [NEW] default Mail app
+      gmail: "https://mail.google.com/mail/?view=cm&fs=1&to=" + encodeURIComponent(to) +      // [NEW] Gmail compose
+             "&su=" + encodeURIComponent(subject) + "&body=" + body,
       outlook: "https://outlook.office.com/mail/deeplink/compose?to=" + encodeURIComponent(to) + "&" + q + "&body=" + body,
       app: "ms-outlook://compose?to=" + encodeURIComponent(to) + "&" + q + "&body=" + body,   // Outlook phone app
       text: "To: " + to + "\nSubject: " + subject + "\n\n" + lines.join("\n")               // shown and copied
@@ -451,7 +471,7 @@
       (!chipOn.weekend || /weekend|\bsat|\bsun/i.test(j.Hours || "")) &&
       (!chipOn.close || walkMinutes(j.Walk) <= 6) &&
       (!chipOn.saved || saved.indexOf(j._id) >= 0) &&
-      (!q || [j.Role, j.Business, j.Location, j.Type, j.Hours, j.Description].join(" ").toLowerCase().includes(q)));
+      (!q || [j.Role, j.Business, j.Location, j.Type, j.Hours, j.Pay, j.Description].join(" ").toLowerCase().includes(q)));
     // [NEW] Sorting
     shown.sort(s === "close"
       ? (a, b) => walkMinutes(a.Walk) - walkMinutes(b.Walk)
