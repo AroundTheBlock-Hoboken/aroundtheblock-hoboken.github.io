@@ -177,11 +177,6 @@ dialog.dlg-fallback[open] { position: fixed; top: 50%; left: 50%; transform: tra
 @media (max-width: 480px) { nav { gap: 6px 14px; justify-content: center; } nav a { font-size: 1rem; } .header-row { flex-wrap: wrap; justify-content: center; gap: 6px; } }
 
 .tag.soon { background: #F7E0DA; color: var(--coral-dark); }
-.faq { max-width: 760px; }
-.faq details { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 4px 18px; margin: 0 0 10px; }
-.faq summary { cursor: pointer; font-weight: 700; font-size: 1.25rem; padding: 12px 0; min-height: 44px; list-style-position: inside; }
-.faq summary:hover { color: var(--coral-dark); }
-.faq details p { margin: 0 0 14px; color: var(--muted); }
 section[id] { scroll-margin-top: 84px; }
 
 .row.closes { margin: 10px 0 2px; font-weight: 700; }
@@ -193,3 +188,8 @@ section[id] { scroll-margin-top: 84px; }
 .shift-list { margin: 6px 0 0; padding-left: 1.2em; }
 .shift-list li { margin: 0 0 4px; }
 .shift-list li::marker { color: var(--sage); }
+.d-sub { margin: 18px 0 4px; font-size: 1.2rem; }
+.d-list { margin: 4px 0 10px; padding-left: 1.2em; }
+.d-list li { margin: 0 0 6px; }
+.d-list li::marker { color: var(--sage); }
+.posted-line { color: var(--muted); margin: 0 0 6px; }

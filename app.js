@@ -82,7 +82,7 @@
   // ---------- [CHANGED] Column names ----------
   // Sheet headers are now matched ignoring capitals, so "pay" or "PAY" still works.
   const COLUMNS = ["Role","Business","Location","Type","Hours","Pay","Walk",
-                   "Apply","Posted","Active","Description","ID","Expires","Experience","Website","Perks"];       // [NEW] Description, ID
+                   "Apply","Posted","Active","Description","ID","Expires","Experience","Website","Perks","Logo","Shifts"];       // [NEW] Description, ID
   const CANON = Object.fromEntries(COLUMNS.map(c => [c.toLowerCase(), c]));
   // [CHANGED] Alternate header names that also work. Your sheet uses "Job Description".
   Object.assign(CANON, {
@@ -125,11 +125,20 @@
   // ---------- [CHANGED] Which rows show ----------
   // A row shows when it has a Role and a Business, is not marked Active = No, and has not passed its Expires date.
   // A blank Active cell now means "show" (type your row and it appears). To hide a job, type No.
-  const isExpired = j => { const t = parseDate(j.Expires); return !!t && t + 864e5 <= Date.now(); };
+  // [NEW] Last day a job shows: the Expires date, or (if Expires is blank) 30 days after Posted.
+  // A job with neither stays up until you type No in Active.
+  const DAY = 864e5, AUTO_DAYS = 30;
+  function expiryTime(j) {
+    const e = parseDate(j.Expires);
+    if (e) return e;
+    const p = parseDate(j.Posted);
+    return p && p <= Date.now() + DAY ? p + AUTO_DAYS * DAY : 0;
+  }
+  const isExpired = j => { const t = expiryTime(j); return !!t && t + DAY <= Date.now(); };
   function hideReason(j) {
     if (!j.Role || !j.Business) return "Role or Business is empty";
     if (hasActiveColumn && j.Active && !/^(y|yes|true|1)$/i.test(j.Active)) return 'Active says "' + j.Active + '" (type Yes to show it)';
-    if (isExpired(j)) return "Expired on " + j.Expires;
+    if (isExpired(j)) return j.Expires ? "Expired on " + j.Expires : "More than " + AUTO_DAYS + " days since Posted (add an Expires date to change this)";
     return "";
   }
   const isActive = j => !hideReason(j);
@@ -157,15 +166,27 @@
   }
   // [NEW] A "Posted" date in the future is ignored (no date shown, not used for sorting).
   const postedTime = j => { const t = parseDate(j.Posted); return t && t <= Date.now() + 864e5 ? t : 0; };
-  // [NEW] Pay: type it in the sheet however you like ("$18/hr", "18", "$17-20 + tips").
-  // A bare number like 18 or 18.5 becomes "$18/hr"; anything else is shown exactly as typed.
-  function fmtPay(s) {
-    s = (s || "").trim();
-    if (/^\$?\d+(\.\d{1,2})?$/.test(s)) return "$" + s.replace(/^\$/, "") + "/hr";
-    return s;
-  }
   const walkMinutes = s => { const m = (s || "").match(/\d+/); return m ? +m[0] : 999; };
   const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  // [NEW] Turns the Description cell into clean text: short lines like "Responsibilities" become
+  // small headings, lines that start with a bullet (• - *) become a list, everything else is a paragraph.
+  function renderDescription(box, text) {
+    const lines = text.split(/\n/).map(l => l.replace(/\t/g, " ").trim());
+    const isBullet = l => /^[•·\-*–]\s*\S/.test(l);
+    let ul = null;
+    lines.forEach((l, i) => {
+      if (!l) { ul = null; return; }
+      if (isBullet(l)) {
+        if (!ul) { ul = el("ul", "d-list"); box.appendChild(ul); }
+        ul.appendChild(el("li", "", l.replace(/^[•·\-*–]\s*/, "")));
+        return;
+      }
+      ul = null;
+      const next = lines.slice(i + 1).find(x => x) || "";
+      const heading = l.length <= 36 && !/[.!?,;:]$/.test(l) && l.split(" ").length <= 5 && next;
+      box.appendChild(heading ? el("h4", "d-sub", l) : el("p", "", l));
+    });
+  }
   const paragraphs = text => text.split(/\n+/).map(p => p.trim()).filter(Boolean);
 
   function applyLink(value) {
@@ -218,7 +239,7 @@
   const HEART = '<svg viewBox="0 0 24 24" focusable="false"><path d="M12 20.5s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.9c0 5.4-7.5 10-7.5 10z"/></svg>';
   let saved = [];
   try { saved = JSON.parse(localStorage.getItem(SAVE_KEY) || "[]") || []; } catch (e) { saved = []; }
-  const chipsEl = $("chips"), chipOn = { weekend: false, close: false, saved: false }, chipEls = {};
+  const chipsEl = $("chips"), chipOn = { weekend: false, morning: false, afternoon: false, evening: false, close: false, saved: false }, chipEls = {};
   function updateChips() { if (chipEls.saved) chipEls.saved.textContent = "Saved" + (saved.length ? " (" + saved.length + ")" : ""); }
   function toggleSave(id) {
     const i = saved.indexOf(id);
@@ -242,7 +263,7 @@
   }
   function buildChips() {
     if (!chipsEl || chipsEl.firstChild) return;
-    [["weekend", "Weekends"], ["close", "Under 6 Min Walk"], ["saved", "Saved"]].forEach(([k, label]) => {
+    [["weekend", "Weekends"], ["morning", "Mornings"], ["afternoon", "Afternoons"], ["evening", "Evenings"], ["close", "Under 6 Min Walk"], ["saved", "Saved"]].forEach(([k, label]) => {
       const b = el("button", "chip", label); b.type = "button"; b.setAttribute("aria-pressed", "false");
       b.addEventListener("click", () => {
         chipOn[k] = !chipOn[k];
@@ -260,6 +281,68 @@
     return "";
   }
 
+  // [NEW] "411 Washington St, Hoboken, NJ, 07030" -> "411 Washington St" (Hoboken is implied)
+  const shortAddr = a => (a || "").replace(/,?\s*Hoboken,?\s*(NJ|New Jersey)?,?\s*\d{5}(-\d{4})?\s*$/i, "").replace(/,?\s*Hoboken,?\s*(NJ)?\s*$/i, "").trim();
+  // [NEW] Tidies shift text: "5 PM -10:30 PM" -> "5 PM – 10:30 PM", "10:30PM" -> "10:30 PM", "Mon-Thursday" -> "Mon – Thursday"
+  function tidyTimes(s) {
+    return (s || "")
+      .replace(/(\d)\s*([AaPp])\.?[Mm]\b\.?/g, (m, d, ap) => d + " " + ap.toUpperCase() + "M")
+      .replace(/([AP]M|\d)\s*[-–]\s*(?=\d)/g, "$1 – ")
+      .replace(/\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun)([a-z]*)\s*-\s*(Mon|Tue|Wed|Thu|Fri|Sat|Sun)/g, "$1$2 – $3")
+      .replace(/[ \t]+/g, " ").trim();
+  }
+  // [NEW] Splits an Hours/Shifts cell into a small heading and a list of lines for the job window.
+  function shiftLines(text) {
+    let lines = (text || "").split(/\n+/).map(x => tidyTimes(x)).filter(Boolean), header = "";
+    if (lines.length) {
+      const m = lines[0].match(/^(.*?shifts?\s*(?:\([^)]*\))?)\s*[-–:]\s+(.+)$/i);
+      if (m) { header = m[1].trim(); lines[0] = m[2]; }
+    }
+    return { header, lines };
+  }
+  const isLongHours = h => !!h && (h.length > 70 || /\n/.test(h));
+  // [NEW] Short card summary for long shift lists: "Weekdays & weekends, evenings"
+  function hoursSummary(h) {
+    if (!isLongHours(h)) return tidyTimes(h);
+    const t = h.toLowerCase(), p = dayParts(h);
+    const days = [/\b(mon|tue|wed|thu|fri)/.test(t) ? "Weekdays" : "", /\b(sat|sun)|weekend/.test(t) ? "Weekends" : ""].filter(Boolean).join(" & ");
+    const times = ["morning", "afternoon", "evening"].filter(k => p[k]);
+    const timeText = times.length && times.length < 3 ? times.map(k => k + "s").join(" & ") : "";
+    const out = [days, timeText].filter(Boolean).join(", ");
+    return out ? out + " · see details" : tidyTimes(h.split(/\n/)[0]).slice(0, 70) + "…";
+  }
+  // [NEW] Reads the Hours text and says which parts of the day it covers.
+  // "8am to 2pm" -> morning + afternoon.  "Fri & Sat evenings" -> evening.
+  function dayParts(text) {
+    const out = { morning: false, afternoon: false, evening: false }, t = (text || "").toLowerCase();
+    if (/morning/.test(t)) out.morning = true;
+    if (/afternoon/.test(t)) out.afternoon = true;
+    if (/evening|night|dinner/.test(t)) out.evening = true;
+    const times = [], re = /(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/g;
+    let m;
+    while ((m = re.exec(t))) { let h = +m[1] % 12; if (m[3] === "pm") h += 12; times.push(h + (m[2] ? +m[2] / 60 : 0)); }
+    for (let i = 0; i < times.length; i += 2) {              // each "start to end" pair
+      const a = times[i];
+      if (i + 1 < times.length) {
+        const b = times[i + 1] > a ? times[i + 1] : times[i + 1] + 24;
+        if (a < 12) out.morning = true;
+        if (a < 17 && b > 12) out.afternoon = true;
+        if (b > 17) out.evening = true;
+      } else if (a < 12) out.morning = true; else if (a < 17) out.afternoon = true; else out.evening = true;
+    }
+    return out;
+  }
+  // [NEW] "Closing soon": the Expires date is within the next 7 days
+  const closingSoon = j => { const t = expiryTime(j); return !!t && t + DAY > Date.now() && t - Date.now() < 7 * DAY; };
+  const fmtLong = t => new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  // "Open until Nov 15, 2026 · 30 days left"
+  function closeLine(j) {
+    const t = expiryTime(j); if (!t) return "";
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const left = Math.round((t - today.getTime()) / DAY);
+    return "Open until " + fmtLong(t) + " · " + (left <= 0 ? "last day" : left === 1 ? "1 day left" : left + " days left");
+  }
+
   // ---------- Job card (the clickable summary) ----------
   function card(j) {
     const c = el("article", "card");
@@ -270,20 +353,26 @@
     a.href = "#job=" + j._id;
     h.appendChild(a);
     titles.appendChild(h);
-    const where = [j.Business, j.Location].filter(Boolean).join(", ");
+    const where = [j.Business, shortAddr(j.Location)].filter(Boolean).join(", ");
     if (where) titles.appendChild(el("p", "where", where));
+    const logoUrl = /^https?:\/\/\S+$/i.test((j.Logo || "").trim()) ? j.Logo.trim() : "";   // [NEW] optional Logo column
+    if (logoUrl) {
+      const li = el("img", "card-logo"); li.src = logoUrl; li.alt = ""; li.loading = "lazy";
+      li.addEventListener("error", () => { li.style.display = "none"; });
+      top.appendChild(li);
+    }
     top.appendChild(titles);
     top.appendChild(saveButton(j));                          // [NEW] heart to save a job
     c.appendChild(top);
 
     const tags = el("div", "tags");                          // [NEW] tag row
     if (j.Type) tags.appendChild(el("span", "tag", j.Type));
+    if (closingSoon(j)) tags.appendChild(el("span", "tag soon", "Closing Soon"));
     if (tags.childNodes.length) c.appendChild(tags);
 
-    if (j.Pay) c.appendChild(row("coin", fmtPay(j.Pay), "pay"));   // [NEW] pay from the sheet's Pay column
-    if (j.Hours) c.appendChild(row("clock", j.Hours));
+    if (j.Hours) c.appendChild(row("clock", hoursSummary(j.Hours)));
     if (j.Walk) c.appendChild(row("pin", j.Walk + " from campus"));
-    if (parseDate(j.Expires)) c.appendChild(row("cal", "Apply by " + fmtDate(j.Expires)));   // [NEW] shows the sheet's Expires date
+    if (expiryTime(j)) c.appendChild(row("cal", "Apply by " + fmtLong(expiryTime(j))));       // [CHANGED] Expires date, or 30 days after Posted
     c.appendChild(el("div", "spacer"));
     const more = el("a", "btn", "View details");             // [CHANGED] main button opens details
     more.href = "#job=" + j._id;
@@ -301,23 +390,49 @@
     const head = el("header", "d-head");
     const title = el("h2", "", j.Role || "Open role"); title.id = "dialog-title";
     head.appendChild(title);
-    const where = [j.Business, j.Location].filter(Boolean).join(", ");
+    const where = [j.Business, shortAddr(j.Location)].filter(Boolean).join(", ");
     if (where) head.appendChild(el("p", "where", where));
     const tags = el("div", "tags");
     if (j.Type) tags.appendChild(el("span", "tag", j.Type));
+    if (closingSoon(j)) tags.appendChild(el("span", "tag soon", "Closing Soon"));
     if (tags.childNodes.length) head.appendChild(tags);
     dlgBody.appendChild(head);
 
-    // Facts grid: only shows rows that have a value
+    // [NEW] When the listing comes off the site
+    const cl = closeLine(j);
+    if (cl) { const r = row("cal", cl, "closes"); r.classList.toggle("soon", closingSoon(j)); dlgBody.appendChild(r); }
+
+    // [MOVED UP] Directions: opens Google Maps (or the Maps app) to the business
+    const addr = j.Location && /\d/.test(j.Location) ? j.Location : [j.Location, "Hoboken NJ"].filter(Boolean).join(" ");
+    const dirQ = [j.Business, addr].filter(Boolean).join(" ");
+    const dirP = el("p", "meta row dir"), dirI = el("span", "ico");
+    dirI.setAttribute("aria-hidden", "true"); dirI.innerHTML = '<svg viewBox="0 0 24 24" focusable="false">' + ICONS.pin + "</svg>";
+    const dirA = el("a", "", "Get Directions" + (j.Walk ? " (" + j.Walk + " from campus)" : ""));
+    dirA.href = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(dirQ);
+    dirA.target = "_blank"; dirA.rel = "noopener noreferrer";
+    dirP.appendChild(dirI); dirP.appendChild(dirA); dlgBody.appendChild(dirP);
+
+    // Facts grid: only shows rows that have a value (short hours only; long shift lists get their own block below)
     const facts = el("dl", "facts");
-    [["Pay", j.Pay && fmtPay(j.Pay)], ["Hours", j.Hours],   // [NEW] Pay shown first
-     ["Distance", j.Walk && j.Walk + " from campus"], ["Posted", postedTime(j) ? fmtDate(j.Posted) : ""],
-     ["Apply By", parseDate(j.Expires) ? fmtDate(j.Expires) : ""]].forEach(([k, v]) => {
+    [["Hours", !isLongHours(j.Hours) && !j.Shifts ? tidyTimes(j.Hours) : ""],
+     ].forEach(([k, v]) => {
       if (!v) return;
       const box = el("div"); box.appendChild(el("dt", "", k)); box.appendChild(el("dd", "", v));
       facts.appendChild(box);
     });
-    dlgBody.appendChild(facts);
+    if (facts.childNodes.length) dlgBody.appendChild(facts);
+    if (postedTime(j)) dlgBody.appendChild(el("p", "meta posted-line", "Posted " + fmtDate(j.Posted)));
+
+    // [NEW] Shifts: from the optional Shifts column, or from a long Hours cell. One shift per line.
+    const shiftSrc = j.Shifts || (isLongHours(j.Hours) ? j.Hours : "");
+    if (shiftSrc) {
+      const sh = shiftLines(shiftSrc), box = el("section", "d-shifts");
+      box.appendChild(el("h3", "", "Shifts"));
+      if (sh.header) box.appendChild(el("p", "meta", sh.header.replace(/^./, c => c.toUpperCase()) + ":"));
+      const ul = el("ul", "shift-list");
+      sh.lines.forEach(l => ul.appendChild(el("li", "", l)));
+      box.appendChild(ul); dlgBody.appendChild(box);
+    }
 
     // [NEW] Optional sheet columns: Experience and Perks (separate perks with ; )
     const know = [];
@@ -328,15 +443,9 @@
     // Description: line breaks in the sheet cell become paragraphs
     const desc = el("section", "d-desc");
     desc.appendChild(el("h3", "", "About this job"));
-    if (j.Description) paragraphs(j.Description).forEach(p => desc.appendChild(el("p", "", p)));
+    if (j.Description) renderDescription(desc, j.Description);
     else desc.appendChild(el("p", "meta", "No description yet. Contact the business to ask about the role."));
     dlgBody.appendChild(desc);
-    // [NEW] Directions: opens Google Maps (or the Maps app) to the business
-    const dirQ = [j.Business, j.Location, "Hoboken NJ"].filter(Boolean).join(" ");
-    const dirP = el("p", "meta site"), dirA = el("a", "", "Get Directions");
-    dirA.href = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(dirQ);
-    dirA.target = "_blank"; dirA.rel = "noopener noreferrer";
-    dirP.appendChild(dirA); dlgBody.appendChild(dirP);
     const site = safeUrl(j.Website);                           // [NEW] optional Website column
     if (site) {
       const p = el("p", "meta site"), a = el("a", "", "Visit " + j.Business + " Website");
@@ -355,39 +464,30 @@
       const a = el("a", "btn", "Apply on employer site"); a.href = raw; a.target = "_blank"; a.rel = "noopener";
       apply.appendChild(a);
     } else if (email) {
-      // [CHANGED] Main button opens the device's own Mail app (Apple Mail on iPhone/Mac, the default
-      // mail app elsewhere). Underneath: Outlook and Gmail links for anyone whose Mail app isn't set up
-      // (common on Android and Windows). The message is also copied on click and shown below, so if an
-      // email ever opens blank the student can just paste it in.
+      // [CHANGED] STEVENS ONLY, built to work on every device.
+      // - Computers: opens a new email in Outlook on the web (Stevens/Okta sign-in).
+      // - Phones: opens the Outlook app (it fills in the message); a browser link sits right under it.
+      // - On any device the message is also copied automatically and shown below, so if an
+      //   email opens blank the student can just paste it. This makes the template foolproof.
       const L = emailLinks(j, email), phone = isPhone();
       apply.appendChild(el("h3", "", "Stevens students only"));
-      const go = el("a", "btn", "Apply by Email");
-      go.href = L.mail;
-      go.setAttribute("aria-label", "Apply for " + (j.Role || "this job") + " at " + (j.Business || "this business") + " by email");
+      const go = el("a", "btn", phone ? "Apply in Outlook app" : "Apply with Stevens Outlook");
+      go.href = phone ? L.app : L.outlook;
+      if (!phone) { go.target = "_blank"; go.rel = "noopener"; }
+      go.setAttribute("aria-label", "Apply for " + (j.Role || "this job") + " at " + (j.Business || "this business") + " with Stevens Outlook");
       apply.appendChild(go);
       const note = el("p", "apply-note",
-        "Opens your Mail app with the message ready. Add your details, attach your resume, then send. Use your Stevens email if you can.");
+        "Sign in with your Stevens account. Add your details, attach your resume, then send. Replies come to your Stevens inbox, so check it after you apply.");
       note.setAttribute("aria-live", "polite");
       apply.appendChild(note);
-      const copyOnClick = a => a.addEventListener("click", () => {
+      go.addEventListener("click", () => {
         copyText(L.text).then(ok => { if (ok) note.textContent = "Message copied. If your email opens blank, just paste it in."; });
       });
-      copyOnClick(go);
-      // [NEW] Other ways to send: Outlook (app on phones, web on computers) and Gmail (web)
-      const alt = el("p", "apply-note apply-alt", "Mail app not working? Use ");
-      const ol = el("a", "linklike", "Outlook"); ol.href = phone ? L.app : L.outlook;
-      if (!phone) { ol.target = "_blank"; ol.rel = "noopener"; }
-      const gm = el("a", "linklike", "Gmail"); gm.href = L.gmail; gm.target = "_blank"; gm.rel = "noopener";
-      copyOnClick(ol); copyOnClick(gm);
-      alt.appendChild(ol); alt.appendChild(document.createTextNode(" or ")); alt.appendChild(gm);
-      alt.appendChild(document.createTextNode("."));
-      apply.appendChild(alt);
-      if (phone) {   // Outlook app might not be installed: offer Outlook on the web too
-        const web = el("p", "apply-note", "No Outlook app? ");
+      if (phone) {
+        const alt = el("p", "apply-note", "No Outlook app? ");
         const x = el("a", "linklike", "Open Outlook in your browser"); x.href = L.outlook; x.target = "_blank"; x.rel = "noopener";
-        copyOnClick(x);
-        web.appendChild(x); web.appendChild(document.createTextNode("."));
-        apply.appendChild(web);
+        alt.appendChild(x); alt.appendChild(document.createTextNode("."));
+        apply.appendChild(alt);
       }
       const det = el("details", "msg-preview");
       det.appendChild(el("summary", "", "See the message we write for you"));
@@ -435,9 +535,6 @@
     const q = "subject=" + encodeURIComponent(subject);
     const body = encodeURIComponent(lines.join("\n"));
     return {
-      mail: "mailto:" + to + "?" + q + "&body=" + body,                                       // [NEW] default Mail app
-      gmail: "https://mail.google.com/mail/?view=cm&fs=1&to=" + encodeURIComponent(to) +      // [NEW] Gmail compose
-             "&su=" + encodeURIComponent(subject) + "&body=" + body,
       outlook: "https://outlook.office.com/mail/deeplink/compose?to=" + encodeURIComponent(to) + "&" + q + "&body=" + body,
       app: "ms-outlook://compose?to=" + encodeURIComponent(to) + "&" + q + "&body=" + body,   // Outlook phone app
       text: "To: " + to + "\nSubject: " + subject + "\n\n" + lines.join("\n")               // shown and copied
@@ -469,9 +566,13 @@
     const shown = jobs.filter(j =>
       (!t || j.Type === t) &&
       (!chipOn.weekend || /weekend|\bsat|\bsun/i.test(j.Hours || "")) &&
+      (!(chipOn.morning || chipOn.afternoon || chipOn.evening) || (function () {
+        const p = dayParts(j.Hours);
+        return (chipOn.morning && p.morning) || (chipOn.afternoon && p.afternoon) || (chipOn.evening && p.evening);
+      })()) &&
       (!chipOn.close || walkMinutes(j.Walk) <= 6) &&
       (!chipOn.saved || saved.indexOf(j._id) >= 0) &&
-      (!q || [j.Role, j.Business, j.Location, j.Type, j.Hours, j.Pay, j.Description].join(" ").toLowerCase().includes(q)));
+      (!q || [j.Role, j.Business, j.Location, j.Type, j.Hours, j.Description].join(" ").toLowerCase().includes(q)));
     // [NEW] Sorting
     shown.sort(s === "close"
       ? (a, b) => walkMinutes(a.Walk) - walkMinutes(b.Walk)
@@ -506,6 +607,7 @@
     setChildren(box, []);
     box.appendChild(el("h3", "", "Sheet check"));
     const add = t => box.appendChild(el("p", "meta", t));
+    add("Site files version: 19 (if this is not 19, some files on GitHub are old)");
     const url = cfg.sheetCsvUrl || "";
     add("Sheet link ends in: ..." + url.replace(/\?.*$/, "").slice(-10) + " (tab " + ((url.match(/gid=(\d+)/) || [])[1] || "unknown") + ")");
     if (errMsg) { add("Could not read the sheet: " + errMsg); return; }
@@ -576,7 +678,7 @@
           try { setup(readCSV(old)); statusEl.textContent += " (saved copy, couldn't reach the sheet)"; return; } catch (e) {}
         }
         statusEl.textContent = "Couldn't load jobs. Check your connection and try again.";
-        const box = el("div", "empty"), b = el("button", "btn", "Try again"); b.type = "button";
+        const box = el("div", "empty"); box.appendChild(el("p", "", "We couldn't load the job list. This is usually a weak connection. Please try again in a moment.")); const b = el("button", "btn", "Try again"); b.type = "button";
         b.addEventListener("click", () => load()); box.appendChild(b);
         setChildren(listEl, [box]);
       });
