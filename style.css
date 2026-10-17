@@ -171,3 +171,25 @@ dialog.dlg-fallback[open] { position: fixed; top: 50%; left: 50%; transform: tra
 .foot-title { font-style: italic; font-size: 1.5rem; margin: 0 0 14px; color: var(--ink); }
 .site-footer .addr-line { margin: 12px 0 4px; }
 .site-footer .foot-small { margin-top: 18px; font-size: .95rem; }
+
+/* Optional business logo on a card (only used if the sheet has a Logo column) */
+.card-logo { flex: none; width: 48px; height: 48px; border-radius: 12px; border: 1px solid var(--line); background: #fff; object-fit: contain; }
+@media (max-width: 480px) { nav { gap: 6px 14px; justify-content: center; } nav a { font-size: 1rem; } .header-row { flex-wrap: wrap; justify-content: center; gap: 6px; } }
+
+.tag.soon { background: #F7E0DA; color: var(--coral-dark); }
+.faq { max-width: 760px; }
+.faq details { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 4px 18px; margin: 0 0 10px; }
+.faq summary { cursor: pointer; font-weight: 700; font-size: 1.25rem; padding: 12px 0; min-height: 44px; list-style-position: inside; }
+.faq summary:hover { color: var(--coral-dark); }
+.faq details p { margin: 0 0 14px; color: var(--muted); }
+section[id] { scroll-margin-top: 84px; }
+
+.row.closes { margin: 10px 0 2px; font-weight: 700; }
+.row.closes.soon { color: var(--coral-dark); }
+.row.dir { margin: 2px 0 12px; font-weight: 700; }
+.row.dir a { color: var(--coral-dark); }
+.d-shifts { margin: 14px 0; }
+.d-shifts h3 { margin: 0 0 4px; font-size: 1.4rem; }
+.shift-list { margin: 6px 0 0; padding-left: 1.2em; }
+.shift-list li { margin: 0 0 4px; }
+.shift-list li::marker { color: var(--sage); }
