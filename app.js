@@ -489,6 +489,13 @@
         alt.appendChild(x); alt.appendChild(document.createTextNode("."));
         apply.appendChild(alt);
       }
+      // [RESTORED] Other ways to send the same message
+      const more = el("p", "apply-note other-mail", "Prefer another email? ");
+      const mk = (label, href, blank) => { const a = el("a", "linklike", label); a.href = href; if (blank) { a.target = "_blank"; a.rel = "noopener"; } return a; };
+      more.appendChild(mk("Mail app", L.mail, false)); more.appendChild(document.createTextNode(" or "));
+      more.appendChild(mk("Gmail", L.gmail, true)); more.appendChild(document.createTextNode(". Use your Stevens email if you can."));
+      if (!phone) { more.insertBefore(document.createTextNode(""), more.firstChild); }
+      apply.appendChild(more);
       const det = el("details", "msg-preview");
       det.appendChild(el("summary", "", "See the message we write for you"));
       det.appendChild(el("pre", "", L.text));
@@ -537,6 +544,8 @@
     return {
       outlook: "https://outlook.office.com/mail/deeplink/compose?to=" + encodeURIComponent(to) + "&" + q + "&body=" + body,
       app: "ms-outlook://compose?to=" + encodeURIComponent(to) + "&" + q + "&body=" + body,   // Outlook phone app
+      gmail: "https://mail.google.com/mail/?view=cm&fs=1&to=" + encodeURIComponent(to) + "&su=" + encodeURIComponent(subject) + "&body=" + body,
+      mail: "mailto:" + to + "?" + q + "&body=" + body,                                       // the device's own mail app
       text: "To: " + to + "\nSubject: " + subject + "\n\n" + lines.join("\n")               // shown and copied
     };
   }
