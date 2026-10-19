@@ -10,6 +10,8 @@ window.ATB_CONFIG = {
   // 2. Where the "Email us" buttons send messages (shared team inbox).
   contactEmail: "aroundtheblockhoboken@gmail.com",
 
+  applyLogUrl: "https://script.google.com/macros/s/AKfycbwS54tTzTein9D5G04Gqwb2DhwppSN6taAtyTkSiuQgks1MG1at6dxW3n8R8g2EmpmmgQ/exec",
+
   // 3. Only shown if sheetCsvUrl is ever left empty.
   exampleJobs: []
 };
