@@ -323,13 +323,12 @@
   const isLongHours = h => !!h && (h.length > 70 || /\n/.test(h) || shiftLines(h).items.filter(i => i.days).length > 1);
   // [NEW] Short card summary for long shift lists: "Weekdays & weekends, evenings"
   function hoursSummary(h) {
-    if (!isLongHours(h)) return tidyTimes(h);
     const t = h.toLowerCase(), p = dayParts(tidyTimes(h));
-    const days = [/\b(mon|tue|wed|thu|fri)/.test(t) ? "Weekdays" : "", /\b(sat|sun)|weekend/.test(t) ? "Weekends" : ""].filter(Boolean).join(" & ");
+    const days = [/\b(mon|tue|wed|thu|fri|weekday)/.test(t) ? "Weekdays" : "", /\b(sat|sun)|weekend/.test(t) ? "Weekends" : ""].filter(Boolean).join(" & ");
     const times = ["morning", "afternoon", "evening"].filter(k => p[k]);
     const timeText = times.length && times.length < 3 ? times.map(k => k + "s").join(" & ") : "";
     const out = [days, timeText].filter(Boolean).join(", ");
-    return out ? out + " · see details" : tidyTimes(h.split(/\n/)[0]).slice(0, 70) + "…";
+    return out || tidyTimes(h.split(/\n/)[0]).slice(0, 70);
   }
   // [RESTORED] Pay is shown as typed in the sheet, with ranges tidied: "$20-27/hr" -> "$20–27/hr"
   const hasPay = p => /\d/.test(p || "");
@@ -439,7 +438,7 @@
 
     // Facts grid: only shows rows that have a value (short hours only; long shift lists get their own block below)
     const facts = el("dl", "facts");
-    [["Hours", !isLongHours(j.Hours) && !j.Shifts ? tidyTimes(j.Hours) : ""],
+    [["Hours", ""],
      ].forEach(([k, v]) => {
       if (!v) return;
       const box = el("div"); box.appendChild(el("dt", "", k)); box.appendChild(el("dd", "", v));
@@ -449,7 +448,7 @@
     if (postedTime(j)) dlgBody.appendChild(el("p", "meta posted-line", "Posted " + fmtDate(j.Posted)));
 
     // [NEW] Shifts: from the optional Shifts column, or from a long Hours cell. One shift per line.
-    const shiftSrc = j.Shifts || (isLongHours(j.Hours) ? j.Hours : "");
+    const shiftSrc = j.Shifts || j.Hours || "";
     if (shiftSrc) {
       const sh = shiftLines(shiftSrc), box = el("section", "d-shifts");
       box.appendChild(el("h3", "", "Shifts"));
@@ -649,7 +648,7 @@
     setChildren(box, []);
     box.appendChild(el("h3", "", "Sheet check"));
     const add = t => box.appendChild(el("p", "meta", t));
-    add("Site files version: 22 (if this is not 22, some files on GitHub are old)");
+    add("Site files version: 23 (if this is not 23, some files on GitHub are old)");
     const url = cfg.sheetCsvUrl || "";
     add("Sheet link ends in: ..." + url.replace(/\?.*$/, "").slice(-10) + " (tab " + ((url.match(/gid=(\d+)/) || [])[1] || "unknown") + ")");
     if (errMsg) { add("Could not read the sheet: " + errMsg); return; }
