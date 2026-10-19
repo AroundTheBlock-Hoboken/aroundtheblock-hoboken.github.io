@@ -484,7 +484,7 @@
       a.href = site; a.target = "_blank"; a.rel = "noopener noreferrer"; p.appendChild(a); dlgBody.appendChild(p);
     }
 
-    // [CHANGED] Apply area. One button, no form.
+    // [CHANGED] Apply area. For email listings, the button opens a short form (see renderApplyForm).
     // - Email in the sheet -> "Apply by email" opens the student's email app with a ready-made message
     // - Web link in sheet  -> button that opens the employer's application page
     // - Phone in sheet     -> "Call to apply" button
@@ -496,47 +496,15 @@
       const a = el("a", "btn", "Apply on employer site"); a.href = raw; a.target = "_blank"; a.rel = "noopener";
       apply.appendChild(a);
     } else if (email) {
-      // [CHANGED] STEVENS ONLY, built to work on every device.
-      // - Computers: opens a new email in Outlook on the web (Stevens/Okta sign-in).
-      // - Phones: opens the Outlook app (it fills in the message); a browser link sits right under it.
-      // - On any device the message is also copied automatically and shown below, so if an
-      //   email opens blank the student can just paste it. This makes the template foolproof.
-      const L = emailLinks(j, email), phone = isPhone();
+      // [CHANGED] "Apply" now opens a short form first (name, year, major...). The form fills in the
+      // email for the student AND adds one row to your Applications Google Sheet. See renderApplyForm below.
       apply.appendChild(el("h3", "", "Stevens students only"));
-      const go = el("a", "btn", phone ? "Apply in Outlook app" : "Apply with Stevens Outlook");
-      go.href = phone ? L.app : L.outlook;
-      if (!phone) { go.target = "_blank"; go.rel = "noopener"; }
-      go.setAttribute("aria-label", "Apply for " + (j.Role || "this job") + " at " + (j.Business || "this business") + " with Stevens Outlook");
+      const go = el("button", "btn", "Apply"); go.type = "button";
+      go.setAttribute("aria-label", "Apply for " + (j.Role || "this job") + " at " + (j.Business || "this business"));
+      go.addEventListener("click", () => renderApplyForm(j, email));
       apply.appendChild(go);
-      const note = el("p", "apply-note",
-        "Sign in with your Stevens account. Add your details, attach your resume, then send. Replies come to your Stevens inbox, so check it after you apply.");
-      note.setAttribute("aria-live", "polite");
-      apply.appendChild(note);
-      go.addEventListener("click", () => {
-        copyText(L.text).then(ok => { if (ok) note.textContent = "Message copied. If your email opens blank, just paste it in."; });
-      });
-      if (phone) {
-        const alt = el("p", "apply-note", "No Outlook app? ");
-        const x = el("a", "linklike", "Open Outlook in your browser"); x.href = L.outlook; x.target = "_blank"; x.rel = "noopener";
-        alt.appendChild(x); alt.appendChild(document.createTextNode("."));
-        apply.appendChild(alt);
-      }
-      // [RESTORED] Other ways to send the same message
-      const more = el("p", "apply-note other-mail", "Prefer another email? ");
-      const mk = (label, href, blank) => { const a = el("a", "linklike", label); a.href = href; if (blank) { a.target = "_blank"; a.rel = "noopener"; } return a; };
-      more.appendChild(mk("Mail app", L.mail, false)); more.appendChild(document.createTextNode(" or "));
-      more.appendChild(mk("Gmail", L.gmail, true)); more.appendChild(document.createTextNode(". Use your Stevens email if you can."));
-      if (!phone) { more.insertBefore(document.createTextNode(""), more.firstChild); }
-      apply.appendChild(more);
-      const det = el("details", "msg-preview");
-      det.appendChild(el("summary", "", "See the message we write for you"));
-      det.appendChild(el("pre", "", L.text));
-      const cp = el("button", "btn ghost small", "Copy message"); cp.type = "button";
-      cp.addEventListener("click", () => {
-        copyText(L.text).then(ok => { cp.textContent = ok ? "Copied" : "Press and hold the text to copy"; });
-      });
-      det.appendChild(cp);
-      apply.appendChild(det);
+      apply.appendChild(el("p", "apply-note",
+        "Takes 30 seconds. We write the email for you in Stevens Outlook, then you attach your resume and hit send."));
     } else if (applyLink(raw)) {
       const l = applyLink(raw), a = el("a", "btn", l.label); a.href = l.href; apply.appendChild(a);
     } else if (raw) {
@@ -546,31 +514,204 @@
     const act = el("div", "d-actions"); act.appendChild(saveButton(j, true)); dlgBody.appendChild(act);   // [NEW] Save Job
   }
 
+  // =====================================================================
+  // [NEW] Apply form
+  // Step 1: the student fills in a short form (inside the same job window).
+  // Step 2: on "Continue", we (a) add a row to your Applications Google Sheet and
+  //         (b) open Stevens Outlook with the email already filled in with their details.
+  // Their details are remembered on their own device, so the next application is quicker.
+  // =====================================================================
+  const ME_KEY = "atb-applicant";
+  const loadMe = () => { try { return JSON.parse(localStorage.getItem(ME_KEY)) || {}; } catch (e) { return {}; } };
+  const saveMe = me => { try { localStorage.setItem(ME_KEY, JSON.stringify(me)); } catch (e) {} };
+  const YEARS = ["Freshman", "Sophomore", "Junior", "Senior", "Graduate student"];
+  const stevensOnly = cfg.requireStevensEmail !== false;   // add requireStevensEmail: false in index.html to allow any email
+
+  function field(label, input, optional) {
+    const l = el("label", "");
+    const t = el("span", "", label);
+    if (optional) t.appendChild(el("span", "opt", " (optional)"));
+    l.appendChild(t); l.appendChild(input);
+    return l;
+  }
+  function input(name, type, value, attrs) {
+    const i = el(type === "textarea" ? "textarea" : "input");
+    if (type !== "textarea") i.type = type;
+    i.name = name; i.value = value || "";
+    Object.keys(attrs || {}).forEach(k => i.setAttribute(k, attrs[k]));
+    return i;
+  }
+
+  function renderApplyForm(j, to) {
+    const me = loadMe(), phoneDevice = isPhone();
+    setChildren(dlgBody, []);
+    const back = el("button", "linklike back", "← Back to job"); back.type = "button";
+    back.addEventListener("click", () => renderDetail(j));
+    dlgBody.appendChild(back);
+
+    const head = el("header", "d-head");
+    const title = el("h2", "", "Apply: " + (j.Role || "Open role")); title.id = "dialog-title";
+    head.appendChild(title);
+    const where = [j.Business, shortAddr(j.Location)].filter(Boolean).join(", ");
+    if (where) head.appendChild(el("p", "where", where));
+    dlgBody.appendChild(head);
+
+    const f = el("form", "apply-form");
+    const name = input("name", "text", me.name, { required: "", autocomplete: "name", maxlength: "80" });
+    const mail = input("email", "email", me.email, { required: "", autocomplete: "email", maxlength: "120", placeholder: "you@stevens.edu" });
+    if (stevensOnly) { mail.setAttribute("pattern", "[^@\\s]+@stevens\\.edu"); mail.title = "Use your @stevens.edu email"; }
+    const year = el("select"); year.name = "year"; year.required = true;
+    year.appendChild(Object.assign(el("option", "", "Choose one"), { value: "" }));
+    YEARS.forEach(y => year.appendChild(Object.assign(el("option", "", y), { value: y, selected: me.year === y })));
+    const major = input("major", "text", me.major, { required: "", maxlength: "80", placeholder: "e.g. Finance" });
+    const phone = input("phone", "tel", me.phone, { autocomplete: "tel", maxlength: "30" });
+    const avail = input("avail", "textarea", me.avail, { rows: "2", maxlength: "300", placeholder: "e.g. Tue/Thu after 2 PM, weekends" });
+    const about = input("about", "textarea", "", { rows: "3", maxlength: "600",
+      placeholder: "A sentence or two about your experience, or why this job interests you" });
+    const trap = input("company", "text", "", { tabindex: "-1", autocomplete: "off", "aria-hidden": "true" });
+    const trapBox = el("div", "hp"); trapBox.appendChild(trap);   // hidden from people; spam bots fill it in
+
+    const two = el("div", "two");
+    two.appendChild(field("Class year", year)); two.appendChild(field("Major", major));
+    [field("Full name", name), field("Stevens email", mail), two, field("Phone", phone, true),
+     field("When can you work?", avail, true), field("About you", about, true), trapBox].forEach(n => f.appendChild(n));
+
+    // Main button = Stevens Outlook (app on phones, web on computers). Small links for other email apps.
+    let via = "Outlook";
+    const go = el("button", "btn", phoneDevice ? "Continue in Outlook app" : "Continue in Stevens Outlook"); go.type = "submit";
+    go.addEventListener("click", () => { via = "Outlook"; });
+    f.appendChild(go);
+    const alt = el("p", "apply-note other-mail", "Or continue with ");
+    const opts = (phoneDevice ? [["Outlook in browser", "Outlook web"]] : []).concat([["Mail app", "Mail app"], ["Gmail", "Gmail"]]);
+    opts.forEach(([label, v], i) => {
+      const b = el("button", "linklike", label); b.type = "submit";
+      b.addEventListener("click", () => { via = v; });
+      if (i) alt.appendChild(document.createTextNode(i === opts.length - 1 ? " or " : ", "));
+      alt.appendChild(b);
+    });
+    alt.appendChild(document.createTextNode("."));
+    f.appendChild(alt);
+    f.appendChild(el("p", "apply-note small-print",
+      "Your details and the job you applied to are shared with the Around the Block team so we can follow up with you and the business."));
+
+    f.addEventListener("submit", e => {
+      e.preventDefault();
+      if (trap.value) return;
+      const info = { name: name.value.trim(), email: mail.value.trim(), year: year.value, major: major.value.trim(),
+        phone: phone.value.trim(), avail: avail.value.trim(), about: about.value.trim() };
+      saveMe({ name: info.name, email: info.email, year: info.year, major: info.major, phone: info.phone, avail: info.avail });
+      logApplication(j, to, info, via);
+      const L = emailLinks(j, to, info);
+      copyText(L.text);                                          // backup: if the email opens blank, they can paste
+      if (via === "Gmail") window.open(L.gmail, "_blank", "noopener");
+      else if (via === "Mail app") location.href = L.mail;
+      else if (via === "Outlook web" || !phoneDevice) window.open(L.outlook, "_blank", "noopener");
+      else location.href = L.app;
+      renderApplyDone(j, L, phoneDevice);
+    });
+    dlgBody.appendChild(f);
+    dlgBody.scrollTop = 0; dlg.scrollTop = 0;
+  }
+
+  // Shown after the form: reminder to attach the resume + every way to open the email again
+  function renderApplyDone(j, L, phoneDevice) {
+    setChildren(dlgBody, []);
+    const head = el("header", "d-head");
+    const title = el("h2", "", "Almost done!"); title.id = "dialog-title";
+    head.appendChild(title);
+    head.appendChild(el("p", "where", "Your email to " + (j.Business || "the business") + " is ready."));
+    dlgBody.appendChild(head);
+    const box = el("section", "d-apply");
+    box.appendChild(el("p", "", "1. Attach your resume.  2. Hit send."));
+    box.appendChild(el("p", "apply-note", "Email didn't open? Use one of these. The message is also copied, so you can paste it. Replies come to your Stevens inbox."));
+    const links = el("p", "apply-note other-mail");
+    const opts = (phoneDevice ? [["Outlook app", L.app, false]] : []).concat([["Outlook", L.outlook, true], ["Mail app", L.mail, false], ["Gmail", L.gmail, true]]);
+    opts.forEach(([label, href, tab], i) => {
+      const a = el("a", "linklike", label); a.href = href;
+      if (tab) { a.target = "_blank"; a.rel = "noopener"; }
+      if (i) links.appendChild(document.createTextNode("  ·  "));
+      links.appendChild(a);
+    });
+    box.appendChild(links);
+    const det = el("details", "msg-preview");
+    det.appendChild(el("summary", "", "See the message"));
+    det.appendChild(el("pre", "", L.text));
+    const cp = el("button", "btn ghost small", "Copy message"); cp.type = "button";
+    cp.addEventListener("click", () => { copyText(L.text).then(ok => { cp.textContent = ok ? "Copied" : "Press and hold the text to copy"; }); });
+    det.appendChild(cp);
+    box.appendChild(det);
+    dlgBody.appendChild(box);
+    const back = el("button", "btn ghost", "Back to job"); back.type = "button";
+    back.addEventListener("click", () => renderDetail(j));
+    dlgBody.appendChild(back);
+  }
+
+  // Sends one row to the Applications Google Sheet (the Apps Script link in index.html: applyLogUrl).
+  // sendBeacon keeps sending even while the phone switches over to Outlook.
+  function logApplication(j, to, info, via) {
+    if (!cfg.applyLogUrl) return;
+    const data = new URLSearchParams({
+      name: info.name, email: info.email, year: info.year, major: info.major, phone: info.phone,
+      avail: info.avail, about: info.about, role: j.Role || "", business: j.Business || "",
+      jobId: j._id || "", employerEmail: to, via: via
+    });
+    try { if (navigator.sendBeacon && navigator.sendBeacon(cfg.applyLogUrl, data)) return; } catch (e) {}
+    try { fetch(cfg.applyLogUrl, { method: "POST", mode: "no-cors", body: data, keepalive: true }).catch(() => {}); } catch (e) {}
+  }
+
+  // Styles for the form (kept here so you don't have to edit the CSS file)
+  (function () {
+    const css = `
+.apply-form{display:grid;gap:14px;margin-top:4px}
+.apply-form label{display:grid;gap:6px;font-weight:600;font-size:.95rem}
+.apply-form .opt{font-weight:400;opacity:.65}
+.apply-form input,.apply-form select,.apply-form textarea{font:inherit;font-size:16px;font-weight:400;width:100%;box-sizing:border-box;
+  padding:10px 12px;border:1px solid rgba(127,127,127,.45);border-radius:10px;background:transparent;color:inherit}
+.apply-form select option{color:#111;background:#fff}
+.apply-form input:focus,.apply-form select:focus,.apply-form textarea:focus{outline:2px solid currentColor;outline-offset:1px}
+.apply-form textarea{resize:vertical}
+.apply-form .two{display:grid;gap:14px;grid-template-columns:1fr 1fr}
+@media (max-width:420px){.apply-form .two{grid-template-columns:1fr}}
+.apply-form .hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.apply-form .btn{width:100%;justify-content:center;text-align:center}
+.apply-form .small-print{font-size:.8rem;opacity:.7}
+button.linklike{background:none;border:0;padding:0;font:inherit;color:inherit;text-decoration:underline;cursor:pointer}
+button.linklike.back{display:inline-block;margin-bottom:10px;text-decoration:none;opacity:.8}`;
+    const st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
+  })();
+
   // ---------- [NEW] The email the student sends ----------
   // EDIT THE WORDING HERE. Each line below becomes a line in the email.
   const isPhone = () => /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
     (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));   // iPads pretend to be Macs
 
-  function emailLinks(j, to) {
+  // [CHANGED] Fills in the student's answers from the apply form. Anything left blank stays as [brackets].
+  function emailLinks(j, to, info) {
+    info = info || {};
     const role = j.Role || "the open role", biz = j.Business || "your business";
-    const subject = "Stevens Student Application: " + role + " at " + biz;
+    const name = info.name || "[Your Name]";
+    const subject = "Stevens Student Application: " + role + " at " + biz + (info.name ? " (" + info.name + ")" : "");
+    const who = !info.year ? "a [class year] [major] student"
+      : info.year === "Graduate student" ? "a graduate student in " + (info.major || "[major]")
+      : "a " + info.year.toLowerCase() + " " + (info.major || "[major]") + " student";
+    const contact = [info.email && "Email: " + info.email, info.phone && "Phone: " + info.phone].filter(Boolean);
     const lines = [
       "Hello " + biz + " Team,",
       "",
-      "My name is [Your Name], and I'm a [class year] [major] student at Stevens Institute of Technology. I'm applying for the " + role + " position that I found on Around the Block.",
+      "My name is " + name + ", and I'm " + who + " at Stevens Institute of Technology. I'm applying for the " + role + " position that I found on Around the Block.",
       "",
-      "A little about me: [one or two sentences about your experience, or why this job interests you]",
+      info.about || "A little about me: [one or two sentences about your experience, or why this job interests you]",
       "",
-      "Availability for work: [days and hours around your classes]",
-      "Availability for an interview: [days and times]",
-      "Phone: [your phone number]",
+      "Availability for work: " + (info.avail || "[days and hours around your classes]"),
+      "Availability for an interview: [days and times]"
+    ].concat(contact.length ? contact : ["Phone: [your phone number]"]).concat([
       "",
       "My resume is attached. Thank you for your time and consideration.",
       "",
       "Best,",
-      "[Your Name]",
+      name,
       "Stevens Institute of Technology"
-    ];
+    ]);
     const q = "subject=" + encodeURIComponent(subject);
     const body = encodeURIComponent(lines.join("\n"));
     return {
