@@ -287,7 +287,8 @@
   function tidyTimes(s) {
     return (s || "")
       .replace(/(\d)\s*([AaPp])\.?[Mm]\b\.?/g, (m, d, ap) => d + " " + ap.toUpperCase() + "M")
-      .replace(/([AP]M|\d)\s*[-–]\s*(?=\d)/g, "$1 – ")
+      .replace(/\b(6|7|8|9|10|11)(:\d{2})?\s*[-–]\s*(\d{1,2}(?::\d{2})?\s*PM)/g, (m, h, mm, e) => h + (mm || "") + " AM – " + e)   // "11 – 4 PM" -> "11 AM – 4 PM"
+      .replace(/([AP]M|\d)\s*[-–]\s*(?=\d|clos)/gi, "$1 – ")
       .replace(/\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun)([a-z]*)\s*-\s*(Mon|Tue|Wed|Thu|Fri|Sat|Sun)/g, "$1$2 – $3")
       .replace(/[ \t]+/g, " ").trim();
   }
@@ -319,11 +320,11 @@
     });
     return { header, lines, items };
   }
-  const isLongHours = h => !!h && (h.length > 70 || /\n/.test(h));
+  const isLongHours = h => !!h && (h.length > 70 || /\n/.test(h) || shiftLines(h).items.filter(i => i.days).length > 1);
   // [NEW] Short card summary for long shift lists: "Weekdays & weekends, evenings"
   function hoursSummary(h) {
     if (!isLongHours(h)) return tidyTimes(h);
-    const t = h.toLowerCase(), p = dayParts(h);
+    const t = h.toLowerCase(), p = dayParts(tidyTimes(h));
     const days = [/\b(mon|tue|wed|thu|fri)/.test(t) ? "Weekdays" : "", /\b(sat|sun)|weekend/.test(t) ? "Weekends" : ""].filter(Boolean).join(" & ");
     const times = ["morning", "afternoon", "evening"].filter(k => p[k]);
     const timeText = times.length && times.length < 3 ? times.map(k => k + "s").join(" & ") : "";
@@ -331,6 +332,7 @@
     return out ? out + " · see details" : tidyTimes(h.split(/\n/)[0]).slice(0, 70) + "…";
   }
   // [RESTORED] Pay is shown as typed in the sheet, with ranges tidied: "$20-27/hr" -> "$20–27/hr"
+  const hasPay = p => /\d/.test(p || "");
   const tidyPay = p => (p || "").replace(/(\d)\s*[-–]\s*(?=\$?\d)/g, "$1–").replace(/\s+/g, " ").trim();
   // [NEW] Reads the Hours text and says which parts of the day it covers.
   // "8am to 2pm" -> morning + afternoon.  "Fri & Sat evenings" -> evening.
@@ -338,7 +340,7 @@
     const out = { morning: false, afternoon: false, evening: false }, t = (text || "").toLowerCase();
     if (/morning/.test(t)) out.morning = true;
     if (/afternoon/.test(t)) out.afternoon = true;
-    if (/evening|night|dinner/.test(t)) out.evening = true;
+    if (/evening|night|dinner|closing/.test(t)) out.evening = true;
     const times = [], re = /(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/g;
     let m;
     while ((m = re.exec(t))) { let h = +m[1] % 12; if (m[3] === "pm") h += 12; times.push(h + (m[2] ? +m[2] / 60 : 0)); }
@@ -391,7 +393,7 @@
     if (closingSoon(j)) tags.appendChild(el("span", "tag soon", "Closing Soon"));
     if (tags.childNodes.length) c.appendChild(tags);
 
-    if (j.Pay) c.appendChild(row("coin", tidyPay(j.Pay), "pay"));                 // [RESTORED] pay
+    if (hasPay(j.Pay)) c.appendChild(row("coin", tidyPay(j.Pay), "pay"));                 // [RESTORED] pay
     if (j.Hours) c.appendChild(row("clock", hoursSummary(j.Hours)));
     if (j.Walk) c.appendChild(row("pin", j.Walk + " from campus"));
     if (expiryTime(j)) c.appendChild(row("cal", "Apply by " + fmtLong(expiryTime(j))));       // [CHANGED] Expires date, or 30 days after Posted
@@ -424,7 +426,7 @@
     const cl = closeLine(j);
     if (cl) { const r = row("cal", cl, "closes"); r.classList.toggle("soon", closingSoon(j)); dlgBody.appendChild(r); }
 
-    if (j.Pay) dlgBody.appendChild(row("coin", tidyPay(j.Pay), "pay"));          // [RESTORED] pay
+    if (hasPay(j.Pay)) dlgBody.appendChild(row("coin", tidyPay(j.Pay), "pay"));          // [RESTORED] pay
     // [MOVED UP] Directions: opens Google Maps (or the Maps app) to the business
     const addr = j.Location && /\d/.test(j.Location) ? j.Location : [j.Location, "Hoboken NJ"].filter(Boolean).join(" ");
     const dirQ = [j.Business, addr].filter(Boolean).join(" ");
@@ -647,7 +649,7 @@
     setChildren(box, []);
     box.appendChild(el("h3", "", "Sheet check"));
     const add = t => box.appendChild(el("p", "meta", t));
-    add("Site files version: 21 (if this is not 21, some files on GitHub are old)");
+    add("Site files version: 22 (if this is not 22, some files on GitHub are old)");
     const url = cfg.sheetCsvUrl || "";
     add("Sheet link ends in: ..." + url.replace(/\?.*$/, "").slice(-10) + " (tab " + ((url.match(/gid=(\d+)/) || [])[1] || "unknown") + ")");
     if (errMsg) { add("Could not read the sheet: " + errMsg); return; }
