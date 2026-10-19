@@ -199,3 +199,14 @@ section[id] { scroll-margin-top: 84px; }
 .shift-list li.shift { display: flex; flex-wrap: wrap; gap: 2px 16px; }
 .shift-list .sd { min-width: 11.5em; }
 .shift-list .st { color: var(--ink); }
+
+/* Job window: even spacing for the info rows and a tidy two-column shift list */
+.row.closes, .row.pay, .row.dir { margin: 0 0 8px; }
+.posted-line { margin: 4px 0 14px; }
+.d-shifts { margin: 6px 0 16px; }
+.d-shifts h3 { margin: 0 0 2px; }
+.d-shifts > .meta { margin: 0 0 6px; }
+.shift-list li.shift { display: grid; grid-template-columns: 11em 1fr; gap: 0 16px; align-items: start; padding: 10px 0; }
+.shift-list .sd { min-width: 0; }
+.shift-list .st .t { display: block; }
+@media (max-width: 520px) { .shift-list li.shift { grid-template-columns: 1fr; gap: 2px; } }

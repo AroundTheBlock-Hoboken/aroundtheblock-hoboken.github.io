@@ -455,7 +455,10 @@
       const ul = el("ul", "shift-list");
       sh.items.forEach(it => {
         const li = el("li", it.days ? "shift" : "");
-        if (it.days) { li.appendChild(el("strong", "sd", it.days)); li.appendChild(el("span", "st", it.times.join("  ·  "))); }
+        if (it.days) {
+          li.appendChild(el("strong", "sd", it.days));
+          const st = el("span", "st"); it.times.forEach(t => st.appendChild(el("span", "t", t))); li.appendChild(st);   // one time range per line
+        }
         else li.textContent = it.text;
         ul.appendChild(li);
       });
@@ -644,7 +647,7 @@
     setChildren(box, []);
     box.appendChild(el("h3", "", "Sheet check"));
     const add = t => box.appendChild(el("p", "meta", t));
-    add("Site files version: 19 (if this is not 19, some files on GitHub are old)");
+    add("Site files version: 21 (if this is not 21, some files on GitHub are old)");
     const url = cfg.sheetCsvUrl || "";
     add("Sheet link ends in: ..." + url.replace(/\?.*$/, "").slice(-10) + " (tab " + ((url.match(/gid=(\d+)/) || [])[1] || "unknown") + ")");
     if (errMsg) { add("Could not read the sheet: " + errMsg); return; }
