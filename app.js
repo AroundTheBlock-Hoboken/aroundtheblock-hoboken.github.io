@@ -311,6 +311,8 @@
     const out = [days, timeText].filter(Boolean).join(", ");
     return out ? out + " · see details" : tidyTimes(h.split(/\n/)[0]).slice(0, 70) + "…";
   }
+  // [RESTORED] Pay is shown as typed in the sheet, with ranges tidied: "$20-27/hr" -> "$20–27/hr"
+  const tidyPay = p => (p || "").replace(/(\d)\s*[-–]\s*(?=\$?\d)/g, "$1–").replace(/\s+/g, " ").trim();
   // [NEW] Reads the Hours text and says which parts of the day it covers.
   // "8am to 2pm" -> morning + afternoon.  "Fri & Sat evenings" -> evening.
   function dayParts(text) {
@@ -370,6 +372,7 @@
     if (closingSoon(j)) tags.appendChild(el("span", "tag soon", "Closing Soon"));
     if (tags.childNodes.length) c.appendChild(tags);
 
+    if (j.Pay) c.appendChild(row("coin", tidyPay(j.Pay), "pay"));                 // [RESTORED] pay
     if (j.Hours) c.appendChild(row("clock", hoursSummary(j.Hours)));
     if (j.Walk) c.appendChild(row("pin", j.Walk + " from campus"));
     if (expiryTime(j)) c.appendChild(row("cal", "Apply by " + fmtLong(expiryTime(j))));       // [CHANGED] Expires date, or 30 days after Posted
@@ -402,6 +405,7 @@
     const cl = closeLine(j);
     if (cl) { const r = row("cal", cl, "closes"); r.classList.toggle("soon", closingSoon(j)); dlgBody.appendChild(r); }
 
+    if (j.Pay) dlgBody.appendChild(row("coin", tidyPay(j.Pay), "pay"));          // [RESTORED] pay
     // [MOVED UP] Directions: opens Google Maps (or the Maps app) to the business
     const addr = j.Location && /\d/.test(j.Location) ? j.Location : [j.Location, "Hoboken NJ"].filter(Boolean).join(" ");
     const dirQ = [j.Business, addr].filter(Boolean).join(" ");

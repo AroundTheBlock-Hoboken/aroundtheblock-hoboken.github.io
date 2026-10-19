@@ -17,8 +17,9 @@ Part-time jobs at Hoboken businesses, a short walk from Stevens.
 | Business | Cafe Name |
 | Location | Washington St |
 | Type | Coffee shop, Restaurant, Retail (powers the filter) |
-| Hours | Mon & Wed, 7 to 11am |
-| Pay | (not shown on the site for now) |
+| Hours | Keep it short, e.g. `Evenings and weekends`. For a long list of shifts put one shift per line (Alt+Enter on Windows, Cmd+Enter on Mac); the card shows a short summary and the job window lists every shift |
+| Shifts (optional) | Full shift details, one per line. Use this if you want Hours to stay short |
+| Pay | $17/hr or $15.92-$17/hr. Shown on the card and in the job window exactly as you type it |
 | Walk | `4 min walk` (the number is used for "Closest to campus") |
 | Apply | The employer's email (best), a web link, or a phone number |
 | Posted | `2026-10-14` (or `10/14/2026`, or `10-14-2026`) |
