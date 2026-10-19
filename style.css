@@ -193,3 +193,9 @@ section[id] { scroll-margin-top: 84px; }
 .d-list li { margin: 0 0 6px; }
 .d-list li::marker { color: var(--sage); }
 .posted-line { color: var(--muted); margin: 0 0 6px; }
+.shift-list { list-style: none; padding-left: 0; }
+.shift-list li { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.shift-list li:last-child { border-bottom: 0; }
+.shift-list li.shift { display: flex; flex-wrap: wrap; gap: 2px 16px; }
+.shift-list .sd { min-width: 11.5em; }
+.shift-list .st { color: var(--ink); }

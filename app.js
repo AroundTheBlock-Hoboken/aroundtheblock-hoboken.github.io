@@ -298,7 +298,26 @@
       const m = lines[0].match(/^(.*?shifts?\s*(?:\([^)]*\))?)\s*[-–:]\s+(.+)$/i);
       if (m) { header = m[1].trim(); lines[0] = m[2]; }
     }
-    return { header, lines };
+    // [NEW] Split every line into "days" + "times", even when a whole week is typed on one line:
+    // "Monday – Friday: 6:30 AM – 12 PM, 1 PM – 6 PM Saturday – Sunday 9 AM – 3 PM"
+    //   -> Monday – Friday | 6:30 AM – 12 PM · 1 PM – 6 PM
+    //   -> Saturday – Sunday | 9 AM – 3 PM
+    const D = "(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*";
+    const groupRe = new RegExp(D + "(?:\\s*(?:[-–,&]|to|and)\\s*" + D + ")*\\s*:?", "g");
+    const items = [];
+    lines.forEach(line => {
+      const marks = []; let m;
+      groupRe.lastIndex = 0;
+      while ((m = groupRe.exec(line))) marks.push({ i: m.index, end: groupRe.lastIndex, days: m[0].replace(/\s*:$/, "").trim() });
+      if (!marks.length) { items.push({ text: line }); return; }
+      if (marks[0].i > 0) items.push({ text: line.slice(0, marks[0].i).trim() });
+      marks.forEach((mk, k) => {
+        const rest = line.slice(mk.end, k + 1 < marks.length ? marks[k + 1].i : line.length).trim().replace(/^[-–:]\s*/, "");
+        const times = rest.split(/\s*(?:,|;|\band or\b|\band\b|\bor\b)\s*/i).map(t => t.trim()).filter(Boolean);
+        items.push(times.length ? { days: mk.days, times } : { text: mk.days });
+      });
+    });
+    return { header, lines, items };
   }
   const isLongHours = h => !!h && (h.length > 70 || /\n/.test(h));
   // [NEW] Short card summary for long shift lists: "Weekdays & weekends, evenings"
@@ -434,7 +453,12 @@
       box.appendChild(el("h3", "", "Shifts"));
       if (sh.header) box.appendChild(el("p", "meta", sh.header.replace(/^./, c => c.toUpperCase()) + ":"));
       const ul = el("ul", "shift-list");
-      sh.lines.forEach(l => ul.appendChild(el("li", "", l)));
+      sh.items.forEach(it => {
+        const li = el("li", it.days ? "shift" : "");
+        if (it.days) { li.appendChild(el("strong", "sd", it.days)); li.appendChild(el("span", "st", it.times.join("  ·  "))); }
+        else li.textContent = it.text;
+        ul.appendChild(li);
+      });
       box.appendChild(ul); dlgBody.appendChild(box);
     }
 
