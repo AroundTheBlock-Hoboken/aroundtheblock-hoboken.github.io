@@ -197,6 +197,18 @@
     return null;
   }
 
+  // [NEW] Finds a phone number in the Apply cell ("Text 201-210-9535", "(201) 210-9535", "+1 201...").
+  // Returns it ready for a text link (+12012109535), or "" if there isn't one.
+  function textNumber(value) {
+    if (/@|https?:\/\//i.test(value || "")) return "";
+    const m = (value || "").match(/\+?\d[\d\s().\-]{8,}\d/);
+    if (!m) return "";
+    let d = m[0].replace(/[^\d]/g, "");
+    if (d.length === 10) d = "1" + d;
+    return d.length >= 11 ? "+" + d : "";
+  }
+  const prettyNumber = n => { const d = n.replace(/\D/g, "").slice(-10); return d.length === 10 ? "(" + d.slice(0, 3) + ") " + d.slice(3, 6) + "-" + d.slice(6) : n; };
+
   function el(tag, cls, text) {
     const e = document.createElement(tag);
     if (cls) e.className = cls;
@@ -487,7 +499,7 @@
     // [CHANGED] Apply area. For email listings, the button opens a short form (see renderApplyForm).
     // - Email in the sheet -> "Apply by email" opens the student's email app with a ready-made message
     // - Web link in sheet  -> button that opens the employer's application page
-    // - Phone in sheet     -> "Call to apply" button
+    // - Phone in sheet     -> [CHANGED] "Apply" opens the form, then a ready-made text message (iMessage on iPhone/Mac)
     // - Anything else      -> shown as plain text instructions
     const apply = el("section", "d-apply");
     const raw = (j.Apply || "").trim();
@@ -505,6 +517,16 @@
       apply.appendChild(go);
       apply.appendChild(el("p", "apply-note",
         "Takes 30 seconds. We write the email for you in Stevens Outlook, then you attach your resume and hit send."));
+    } else if (textNumber(raw)) {
+      // [NEW] Phone number in the sheet -> same short form, then a ready-made iMessage/text to the employer
+      const num = textNumber(raw);
+      apply.appendChild(el("h3", "", "Stevens students only"));
+      const go = el("button", "btn", "Apply"); go.type = "button";
+      go.setAttribute("aria-label", "Apply for " + (j.Role || "this job") + " at " + (j.Business || "this business"));
+      go.addEventListener("click", () => renderApplyForm(j, num, "text"));
+      apply.appendChild(go);
+      apply.appendChild(el("p", "apply-note",
+        "Takes 30 seconds. We write the text message for you, then you just hit send."));
     } else if (applyLink(raw)) {
       const l = applyLink(raw), a = el("a", "btn", l.label); a.href = l.href; apply.appendChild(a);
     } else if (raw) {
@@ -542,8 +564,8 @@
     return i;
   }
 
-  function renderApplyForm(j, to) {
-    const me = loadMe(), phoneDevice = isPhone();
+  function renderApplyForm(j, to, mode) {
+    const me = loadMe(), phoneDevice = isPhone(), byText = mode === "text";   // [NEW] byText = apply by text message
     setChildren(dlgBody, []);
     const back = el("button", "linklike back", "← Back to job"); back.type = "button";
     back.addEventListener("click", () => renderDetail(j));
@@ -577,11 +599,12 @@
      field("When can you work?", avail, true), field("About you", about, true), trapBox].forEach(n => f.appendChild(n));
 
     // Main button = Stevens Outlook (app on phones, web on computers). Small links for other email apps.
-    let via = "Outlook";
-    const go = el("button", "btn", phoneDevice ? "Continue in Outlook app" : "Continue in Stevens Outlook"); go.type = "submit";
-    go.addEventListener("click", () => { via = "Outlook"; });
+    let via = byText ? "Text" : "Outlook";
+    const go = el("button", "btn", byText ? (canText() ? "Continue in Messages" : "Continue") : phoneDevice ? "Continue in Outlook app" : "Continue in Stevens Outlook"); go.type = "submit";
+    go.addEventListener("click", () => { via = byText ? "Text" : "Outlook"; });
     f.appendChild(go);
     const alt = el("p", "apply-note other-mail", "Or continue with ");
+    if (byText) alt.style.display = "none";                    // [NEW] no email options for text listings
     const opts = (phoneDevice ? [["Outlook in browser", "Outlook web"]] : []).concat([["Mail app", "Mail app"], ["Gmail", "Gmail"]]);
     opts.forEach(([label, v], i) => {
       const b = el("button", "linklike", label); b.type = "submit";
@@ -601,6 +624,13 @@
         phone: phone.value.trim(), avail: avail.value.trim(), about: about.value.trim() };
       saveMe({ name: info.name, email: info.email, year: info.year, major: info.major, phone: info.phone, avail: info.avail });
       logApplication(j, to, info, via);
+      if (byText) {                                              // [NEW] text-message listings
+        const T = textLinks(j, to, info);
+        copyText(T.text);
+        if (canText()) location.href = T.sms;
+        renderTextDone(j, to, T);
+        return;
+      }
       const L = emailLinks(j, to, info);
       copyText(L.text);                                          // backup: if the email opens blank, they can paste
       if (via === "Gmail") window.open(L.gmail, "_blank", "noopener");
@@ -638,6 +668,35 @@
     det.appendChild(el("pre", "", L.text));
     const cp = el("button", "btn ghost small", "Copy message"); cp.type = "button";
     cp.addEventListener("click", () => { copyText(L.text).then(ok => { cp.textContent = ok ? "Copied" : "Press and hold the text to copy"; }); });
+    det.appendChild(cp);
+    box.appendChild(det);
+    dlgBody.appendChild(box);
+    const back = el("button", "btn ghost", "Back to job"); back.type = "button";
+    back.addEventListener("click", () => renderDetail(j));
+    dlgBody.appendChild(back);
+  }
+
+  // [NEW] Shown after the form for text-message listings
+  function renderTextDone(j, to, T) {
+    setChildren(dlgBody, []);
+    const head = el("header", "d-head");
+    const title = el("h2", "", canText() ? "Almost done!" : "Your message is ready"); title.id = "dialog-title";
+    head.appendChild(title);
+    head.appendChild(el("p", "where", canText()
+      ? "Your text to " + (j.Business || "the business") + " is ready. Just hit send."
+      : "Text it from your phone to " + prettyNumber(to) + ". The message is copied, so you can paste it."));
+    dlgBody.appendChild(head);
+    const box = el("section", "d-apply");
+    if (canText()) {
+      box.appendChild(el("p", "apply-note", "Messages didn't open? Tap below. The message is also copied, so you can paste it."));
+      const a = el("a", "btn", "Open Messages"); a.href = T.sms; box.appendChild(a);
+    }
+    const num = el("p", "meta", "Number: " + prettyNumber(to)); box.appendChild(num);
+    const det = el("details", "msg-preview"); det.open = !canText();
+    det.appendChild(el("summary", "", "See the message"));
+    det.appendChild(el("pre", "", T.text));
+    const cp = el("button", "btn ghost small", "Copy message"); cp.type = "button";
+    cp.addEventListener("click", () => { copyText(T.text).then(ok => { cp.textContent = ok ? "Copied" : "Press and hold the text to copy"; }); });
     det.appendChild(cp);
     box.appendChild(det);
     dlgBody.appendChild(box);
@@ -721,6 +780,25 @@ button.linklike.back{display:inline-block;margin-bottom:10px;text-decoration:non
       mail: "mailto:" + to + "?" + q + "&body=" + body,                                       // the device's own mail app
       text: "To: " + to + "\nSubject: " + subject + "\n\n" + lines.join("\n")               // shown and copied
     };
+  }
+
+  // ---------- [NEW] The text message the student sends ----------
+  // EDIT THE WORDING HERE. Kept short because it's a text, not an email.
+  // Phones and Macs open Messages (iMessage if the employer has an iPhone, a normal text if not).
+  const canText = () => isPhone() || /Macintosh/.test(navigator.userAgent);
+  function textLinks(j, to, info) {
+    const role = j.Role || "the open role", biz = j.Business || "your business";
+    const who = info.year === "Graduate student" ? "a graduate student in " + info.major
+      : "a " + (info.year || "").toLowerCase() + " " + info.major + " student";
+    const parts = [
+      "Hi, my name is " + info.name + ", " + who + " at Stevens. I found your " + role + " listing" +
+        (biz && !/^private/i.test(biz) ? " at " + biz : "") + " on Around the Block and I'd love to apply.",
+      info.about || "",
+      info.avail ? "I'm available " + info.avail.replace(/^i'?m available\s*/i, "") + "." : "",
+      "Would you be open to a quick call or meeting? I'm happy to send my resume, and you can also reach me at " + info.email + ". Thank you!"
+    ].filter(Boolean);
+    const text = parts.join("\n\n");
+    return { sms: "sms:" + to + "?&body=" + encodeURIComponent(text), text: text };   // "?&body=" works on iPhone and Android
   }
 
   // Opens/closes the window based on the URL (#job=...). This makes each job
