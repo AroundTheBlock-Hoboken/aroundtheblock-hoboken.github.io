@@ -19,7 +19,7 @@ window.ATB_CONFIG = {
 
   //    Who sees the new form? false = only your team, by adding ?autoapply=1 to the site address
   //    (students still get the Outlook email). Change to true when you are ready to turn it on for everyone.
-  applyLive: false,
+  applyLive: true,
 
   // 5. Only shown if sheetCsvUrl is ever left empty.
   exampleJobs: []

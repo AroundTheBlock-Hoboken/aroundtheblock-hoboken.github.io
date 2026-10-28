@@ -865,7 +865,7 @@ button.linklike.back{display:inline-block;margin-bottom:10px;text-decoration:non
     const doneTitle = el("h4", "", "Application sent!");
     const doneSub = el("p", "apply-note first", "");
     const doneList = el("ul", "next-steps");
-    ["A copy of your application is on its way to your Stevens email", "The business replies to your Stevens email, usually within a few days", "Check your inbox and junk folder"]
+    ["A confirmation is on its way to your Stevens email", "The business replies to your Stevens email, usually within a few days", "Check your inbox and junk folder"]
       .forEach(t => doneList.appendChild(el("li", "", t)));
     const back = el("button", "btn ghost", "Back to jobs"); back.type = "button";
     back.addEventListener("click", () => dlg.close());
@@ -1109,7 +1109,7 @@ button.linklike.back{display:inline-block;margin-bottom:10px;text-decoration:non
     setChildren(box, []);
     box.appendChild(el("h3", "", "Sheet check"));
     const add = t => box.appendChild(el("p", "meta", t));
-    add("Site files version: 30 (if this is not 30, some files on GitHub are old)");
+    add("Site files version: 31 (if this is not 31, some files on GitHub are old)");
     add("Automatic apply: " + (!cfg.applyUrl ? "OFF (no applyUrl in config.js)" : autoApply ? (cfg.applyLive === false ? "TEST MODE (only you see it, because of ?autoapply=1)" : "ON for everyone") : "READY but hidden from students. Add ?autoapply=1 to the address to test it, or set applyLive: true to turn it on for everyone."));
     const url = cfg.sheetCsvUrl || "";
     add("Sheet link ends in: ..." + url.replace(/\?.*$/, "").slice(-10) + " (tab " + ((url.match(/gid=(\d+)/) || [])[1] || "unknown") + ")");
