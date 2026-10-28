@@ -604,7 +604,7 @@
     // signed in to a personal address, so it's only offered as a small backup link.)
     const mainVia = byText ? "Text" : phoneDevice ? "Outlook" : "Outlook web";
     let via = mainVia;
-    const go = el("button", "btn", byText ? (canText() ? "Continue in Messages" : "Continue") : phoneDevice ? "Continue in Outlook app" : "Continue in Stevens Outlook"); go.type = "submit";
+    const go = el("button", "btn", byText ? (canText() ? "Continue in Messages" : "Continue") : phoneDevice ? "Continue in Outlook app" : "Apply"); go.type = "submit";
     go.addEventListener("click", () => { via = mainVia; });
     f.appendChild(go);
     const alt = el("p", "apply-note other-mail", "Or continue with ");
