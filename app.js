@@ -598,18 +598,18 @@
     [field("Full name", name), field("Stevens email", mail), two, field("Phone", phone, true),
      field("When can you work?", avail, true), field("About you", about, true), trapBox].forEach(n => f.appendChild(n));
 
-    // [CHANGED] Main button: the Outlook app on phones, and the computer's own email app on laptops
-    // (Outlook on the web lost the pre-written email whenever it made you sign in first).
-    // Small links underneath for Outlook on the web and Gmail.
-    const mainVia = byText ? "Text" : phoneDevice ? "Outlook" : "Mail app";
+    // [CHANGED] Main button: the Outlook app on phones, Stevens Outlook on the web on laptops.
+    // Both always send from the student's @stevens.edu account. (A laptop's default mail app might be
+    // signed in to a personal address, so it's only offered as a small backup link.)
+    const mainVia = byText ? "Text" : phoneDevice ? "Outlook" : "Outlook web";
     let via = mainVia;
-    const go = el("button", "btn", byText ? (canText() ? "Continue in Messages" : "Continue") : phoneDevice ? "Continue in Outlook app" : "Continue in my email app"); go.type = "submit";
+    const go = el("button", "btn", byText ? (canText() ? "Continue in Messages" : "Continue") : phoneDevice ? "Continue in Outlook app" : "Continue in Stevens Outlook"); go.type = "submit";
     go.addEventListener("click", () => { via = mainVia; });
     f.appendChild(go);
     const alt = el("p", "apply-note other-mail", "Or continue with ");
     if (byText) alt.style.display = "none";                    // [NEW] no email options for text listings
     const opts = phoneDevice ? [["Outlook in browser", "Outlook web"], ["Mail app", "Mail app"], ["Gmail", "Gmail"]]
-                             : [["Stevens Outlook (web)", "Outlook web"], ["Gmail", "Gmail"]];   // [CHANGED]
+                             : [["Outlook desktop app", "Mail app"], ["Gmail", "Gmail"]];   // [CHANGED]
     opts.forEach(([label, v], i) => {
       const b = el("button", "linklike", label); b.type = "submit";
       b.addEventListener("click", () => { via = v; });
@@ -656,11 +656,16 @@
     head.appendChild(el("p", "where", "Your email to " + (j.Business || "the business") + " is ready."));
     dlgBody.appendChild(head);
     const box = el("section", "d-apply");
-    box.appendChild(el("p", "", "1. Attach your resume.  2. Hit send."));
-    box.appendChild(el("p", "apply-note", "Email didn't open, or opened blank? Use one of these. The message is also copied, so you can paste it. Send it from your Stevens email so replies come to your Stevens inbox."));
+    box.appendChild(el("p", "", "1. Check it's sending from your @stevens.edu address.  2. Attach your resume.  3. Hit send."));
+    if (!phoneDevice) {                                          // [NEW] fixes the blank email after signing in
+      box.appendChild(el("p", "apply-note", "Had to sign in to Outlook and the email came up blank? Now that you're signed in, click below to open it again."));
+      const re = el("a", "btn", "Reopen my email in Stevens Outlook"); re.href = L.outlook; re.target = "_blank"; re.rel = "noopener";
+      box.appendChild(re);
+    }
+    box.appendChild(el("p", "apply-note", "Still not working? Use one of these. The message is also copied, so you can paste it. Employers expect a @stevens.edu address, so please send from your Stevens email."));
     const links = el("p", "apply-note other-mail");
     const opts = phoneDevice ? [["Outlook app", L.app, false], ["Outlook", L.outlook, true], ["Mail app", L.mail, false], ["Gmail", L.gmail, true]]
-                             : [["Email app", L.mail, false], ["Stevens Outlook (web)", L.outlook, true], ["Gmail", L.gmail, true]];   // [CHANGED]
+                             : [["Stevens Outlook (web)", L.outlook, true], ["Outlook desktop app", L.mail, false], ["Gmail", L.gmail, true]];   // [CHANGED]
     opts.forEach(([label, href, tab], i) => {
       const a = el("a", "linklike", label); a.href = href;
       if (tab) { a.target = "_blank"; a.rel = "noopener"; }
