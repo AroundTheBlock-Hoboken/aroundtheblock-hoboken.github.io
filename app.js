@@ -8,6 +8,15 @@
 (function () {
   "use strict";
   const cfg = window.ATB_CONFIG || {};
+  // [NEW] Automatic apply is on for everyone when applyLive is not false. While applyLive is false,
+  // only people who add ?autoapply=1 to the web address (your team, for testing) see it.
+  const autoApply = !!cfg.applyUrl && (cfg.applyLive !== false || /[?&]autoapply=1/.test(location.search));
+
+  // [NEW] When automatic apply is on, the "How it works" step describes it.
+  if (autoApply) {
+    const stepText = document.querySelector("#how .steps li:nth-child(2) span");
+    if (stepText) stepText.textContent = "Click Apply, fill in a short form and attach your resume. We send it to the business for you.";
+  }
 
   // ---------- Page elements ----------
   const $ = id => document.getElementById(id);
@@ -82,7 +91,7 @@
   // ---------- [CHANGED] Column names ----------
   // Sheet headers are now matched ignoring capitals, so "pay" or "PAY" still works.
   const COLUMNS = ["Role","Business","Location","Type","Hours","Pay","Walk",
-                   "Apply","Posted","Active","Description","ID","Expires","Experience","Website","Perks","Logo","Shifts"];       // [NEW] Description, ID
+                   "Apply","Posted","Active","Description","ID","Expires","Experience","Website","Perks","Logo","Shifts","HowToApply"];       // [NEW] Description, ID
   const CANON = Object.fromEntries(COLUMNS.map(c => [c.toLowerCase(), c]));
   // [CHANGED] Alternate header names that also work. Your sheet uses "Job Description".
   Object.assign(CANON, {
@@ -90,6 +99,9 @@
     "job desc": "Description",
     "about": "Description",
     "details": "Description",
+    "how to apply": "HowToApply",
+    "apply method": "HowToApply",
+    "application method": "HowToApply",
     "closes": "Expires",
     "expiry": "Expires"
   });
@@ -504,19 +516,41 @@
     const apply = el("section", "d-apply");
     const raw = (j.Apply || "").trim();
     const email = (raw.match(/[^\s,;<>()]+@[^\s,;<>()]+\.[^\s,;<>()]+/) || [])[0];
-    if (/^https?:\/\//i.test(raw)) {
+    // [NEW] Optional "How to apply" column: Online / In store / Call / Text. Blank = online (email) or text (phone only).
+    const how = (j.HowToApply || "").toLowerCase();
+    const phoneInRaw = (raw.match(/\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/) || [])[0];
+    const inPerson = /store|person|walk|visit|stop by|call|phone/.test(how) ||
+                     (!how && !email && !/^https?:\/\//i.test(raw) && !/\btext\b/i.test(raw) && /\b(in store|in person|walk[- ]in|stop by|call)\b/i.test(raw));
+    if (inPerson) {
+      apply.appendChild(el("h3", "", /call|phone/.test(how) && !/store|person|walk|visit/.test(how) ? "Call to apply" : "Apply in person"));
+      apply.appendChild(el("p", "apply-note first", raw || "Stop by the business to apply. Bring your resume."));
+      if (phoneInRaw) {
+        const c = el("a", "btn", "Call " + phoneInRaw.trim()); c.href = "tel:+1" + phoneInRaw.replace(/\D/g, "").slice(-10);
+        apply.appendChild(c);
+      }
+      apply.appendChild(el("p", "apply-note", "Say you found the job on Around the Block."));
+    } else if (/^https?:\/\//i.test(raw)) {
       const a = el("a", "btn", "Apply on employer site"); a.href = raw; a.target = "_blank"; a.rel = "noopener";
       apply.appendChild(a);
     } else if (email) {
-      // [CHANGED] "Apply" now opens a short form first (name, year, major...). The form fills in the
-      // email for the student AND adds one row to your Applications Google Sheet. See renderApplyForm below.
       apply.appendChild(el("h3", "", "Stevens students only"));
-      const go = el("button", "btn", "Apply"); go.type = "button";
-      go.setAttribute("aria-label", "Apply for " + (j.Role || "this job") + " at " + (j.Business || "this business"));
-      go.addEventListener("click", () => renderApplyForm(j, email));
-      apply.appendChild(go);
-      apply.appendChild(el("p", "apply-note",
-        "Takes 30 seconds. We write the email for you, then you attach your resume and hit send."));
+      if (autoApply) {
+        // [NEW] Automatic apply: short form + resume upload, sent for the student (see buildApplyForm).
+        apply.appendChild(buildApplyForm(j, apply, email));
+        const alt = el("details", "alt-mail"); alt.appendChild(el("summary", "", "Prefer to email it yourself?"));
+        alt.appendChild(el("p", "apply-note first", "Use the same short form, then we open the email in Stevens Outlook (or Mail or Gmail) for you to send."));
+        const mb = el("button", "btn ghost small", "Write the email instead"); mb.type = "button";
+        mb.addEventListener("click", () => renderApplyForm(j, email));
+        alt.appendChild(mb); apply.appendChild(alt);
+      } else {
+        // Original flow: short form, then a ready-made email (kept as is)
+        const go = el("button", "btn", "Apply"); go.type = "button";
+        go.setAttribute("aria-label", "Apply for " + (j.Role || "this job") + " at " + (j.Business || "this business"));
+        go.addEventListener("click", () => renderApplyForm(j, email));
+        apply.appendChild(go);
+        apply.appendChild(el("p", "apply-note",
+          "Takes 30 seconds. We write the email for you, then you attach your resume and hit send."));
+      }
     } else if (textNumber(raw)) {
       // [NEW] Phone number in the sheet -> same short form, then a ready-made iMessage/text to the employer
       const num = textNumber(raw);
@@ -750,6 +784,195 @@ button.linklike.back{display:inline-block;margin-bottom:10px;text-decoration:non
     const st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
   })();
 
+  // ---------- [NEW] Automatic apply: the form, the Stevens code, and the upload ----------
+  // Talks to your Google script (config.js > applyUrl). The script emails the business, so the
+  // student has nothing to send. If anything fails, the student can still use the Outlook email.
+  let formCount = 0;
+  function buildApplyForm(j, apply, employerEmail) {
+    const KEY = "atb-profile", MAX = 10 * 1024 * 1024, uid = "af" + (++formCount) + "-";
+    let prof = {};
+    try { prof = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { prof = {}; }
+    const old = loadMe();                                    // details saved by the email form: use them here too
+    ["name", "year", "email", "major", "phone", "avail"].forEach(k => { if (!prof[k] && old[k]) prof[k] = old[k]; });
+    const saveProf = p => { try { localStorage.setItem(KEY, JSON.stringify(p)); } catch (e) {} };
+    const isStevensEmail = v => /^[^\s@]+@stevens\.edu$/i.test(v);
+
+    const wrap = el("div", "apply-flow");
+    const intro = el("p", "apply-note first", "Takes about a minute. Fill in your details, attach your resume, and we send it to the business for you. Replies go to your Stevens email.");
+    const open = el("button", "btn", "Apply now"); open.type = "button";
+    open.setAttribute("aria-label", "Apply now for " + (j.Role || "this job") + " at " + (j.Business || "this business"));
+    const form = el("form", "auto-form"); form.noValidate = true; form.hidden = true;
+    const done = el("div", "apply-done"); done.hidden = true;
+
+    // fields
+    const fields = el("div", "af-fields");
+    const field = (label, input, optional, cls) => {
+      const d = el("div", "af-field" + (cls ? " " + cls : "")), l = el("label", "", label);
+      input.id = uid + (input.name || "x"); l.setAttribute("for", input.id);
+      if (optional) l.appendChild(el("span", "opt", " (optional)"));
+      d.appendChild(l); d.appendChild(input); return d;
+    };
+    const inp = (name, type, auto, val, ph) => {
+      const i = el("input"); i.type = type; i.name = name; if (auto) i.autocomplete = auto; if (val) i.value = val; if (ph) i.placeholder = ph;
+      return i;
+    };
+    const iName = inp("name", "text", "name", prof.name);
+    const iYear = el("select"); iYear.name = "year";
+    [["", "Choose one"], ["Freshman", "Freshman"], ["Sophomore", "Sophomore"], ["Junior", "Junior"], ["Senior", "Senior"], ["Graduate student", "Graduate student"]]
+      .forEach(o => { const op = el("option", "", o[1]); op.value = o[0]; if (o[0] === prof.year) op.selected = true; iYear.appendChild(op); });
+    const iEmail = inp("email", "email", "email", prof.email, "you@stevens.edu"); iEmail.setAttribute("inputmode", "email"); iEmail.autocapitalize = "none";
+    const iMajor = inp("major", "text", "", prof.major);
+    const iPhone = inp("phone", "tel", "tel", prof.phone);
+    const iAvail = inp("availability", "text", "", prof.avail, "e.g. Weekends, Tue/Thu after 3 PM");
+    const iResume = el("input"); iResume.type = "file"; iResume.name = "resume"; iResume.accept = ".pdf,.doc,.docx,application/pdf";
+    const iAbout = el("textarea"); iAbout.name = "about"; iAbout.rows = 3; iAbout.maxLength = 1200;
+    const trap = el("div", "af-trap"); trap.setAttribute("aria-hidden", "true");
+    const iTrap = inp("website", "text", "off"); iTrap.tabIndex = -1; trap.appendChild(iTrap);
+
+    const row2 = (a, b) => { const r = el("div", "af-two"); r.appendChild(a); r.appendChild(b); return r; };
+    fields.appendChild(row2(field("Full name", iName), field("Class year", iYear)));
+    fields.appendChild(field("Stevens email", iEmail));
+    fields.appendChild(row2(field("Major", iMajor), field("Phone", iPhone, true)));
+    fields.appendChild(field("When can you work?", iAvail, true));
+    const resumeField = field("Resume", iResume, false, "af-resume");
+    resumeField.firstChild.appendChild(el("span", "opt", " (PDF or Word, up to 10 MB)"));
+    fields.appendChild(resumeField);
+    fields.appendChild(field("About you", iAbout, true));
+    fields.appendChild(trap);
+
+    // code step
+    const codeBox = el("div", "af-code"); codeBox.hidden = true;
+    const codeHead = el("h4", "", "Check your Stevens email");
+    const codeNote = el("p", "apply-note first", "");
+    const iCode = inp("code", "text", "one-time-code"); iCode.setAttribute("inputmode", "numeric"); iCode.maxLength = 6; iCode.pattern = "[0-9]*";
+    iCode.className = "code-input"; iCode.setAttribute("aria-label", "6-digit code");
+    iCode.id = uid + "code";
+    const codeLinks = el("p", "apply-note");
+    const resend = el("button", "linklike", "Send a new code"); resend.type = "button";
+    const change = el("button", "linklike", "Change email"); change.type = "button";
+    codeLinks.appendChild(resend); codeLinks.appendChild(document.createTextNode(" · ")); codeLinks.appendChild(change);
+    [codeHead, codeNote, iCode, codeLinks].forEach(n => codeBox.appendChild(n));
+
+    const msg = el("p", "apply-msg"); msg.setAttribute("role", "status"); msg.setAttribute("aria-live", "polite");
+    const go = el("button", "btn full", "Send my application"); go.type = "submit";
+    const cancel = el("button", "linklike cancel", "Cancel"); cancel.type = "button";
+    const actions = el("div", "af-actions"); actions.appendChild(go); actions.appendChild(cancel);
+    const privacy = el("p", "apply-note", "We email your application and resume to the business and keep a copy so we can follow up with you.");
+    [fields, codeBox, msg, actions, privacy].forEach(n => form.appendChild(n));
+
+    // done
+    const check = el("div", "check-badge", "✓"); check.setAttribute("aria-hidden", "true");
+    const doneTitle = el("h4", "", "Application sent!");
+    const doneSub = el("p", "apply-note first", "");
+    const doneList = el("ul", "next-steps");
+    ["A copy of your application is on its way to your Stevens email", "The business replies to your Stevens email, usually within a few days", "Check your inbox and junk folder"]
+      .forEach(t => doneList.appendChild(el("li", "", t)));
+    const back = el("button", "btn ghost", "Back to jobs"); back.type = "button";
+    back.addEventListener("click", () => dlg.close());
+    [check, doneTitle, doneSub, doneList, back].forEach(n => done.appendChild(n));
+
+    wrap.appendChild(intro); wrap.appendChild(open); wrap.appendChild(form); wrap.appendChild(done);
+
+    // behavior
+    let step = "form", sentTo = "", busy = false;
+    const say = (t, bad) => { msg.textContent = t || ""; msg.classList.toggle("err", !!bad); };
+    const showStep = s => {
+      step = s; fields.hidden = s !== "form"; codeBox.hidden = s !== "code";
+      go.textContent = s === "code" ? "Confirm and send" : "Send my application";
+      say("");
+      if (s === "code") { iCode.value = ""; iCode.focus(); }
+    };
+    const setBusy = (b, label) => { busy = b; go.disabled = b; if (b) go.textContent = label; else go.textContent = step === "code" ? "Confirm and send" : "Send my application"; };
+    open.addEventListener("click", () => { intro.hidden = true; open.hidden = true; form.hidden = false; iName.focus(); });
+    cancel.addEventListener("click", () => { form.hidden = true; intro.hidden = false; open.hidden = false; showStep("form"); open.focus(); });
+    change.addEventListener("click", () => { showStep("form"); iEmail.focus(); });
+
+    function post(payload) {
+      const call = fetch(cfg.applyUrl, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) })
+        .then(r => r.json());
+      const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 90000));
+      return Promise.race([call, timeout]);
+    }
+    const netFail = () => say("We couldn't reach the server. Check your connection and try again, or use \"Prefer to email it yourself?\" below.", true);
+    function readResume() {
+      return new Promise((res, rej) => {
+        const f = iResume.files && iResume.files[0]; if (!f) return rej(new Error("none"));
+        const r = new FileReader();
+        r.onload = () => res({ name: f.name, data: String(r.result).split(",")[1] || "" });
+        r.onerror = () => rej(new Error("read"));
+        r.readAsDataURL(f);
+      });
+    }
+    function validate() {
+      const f = iResume.files && iResume.files[0], email = iEmail.value.trim();
+      if (iName.value.trim().length < 2) return [iName, "Please enter your full name."];
+      if (!iYear.value) return [iYear, "Please choose your class year."];
+      if (!isStevensEmail(email)) return [iEmail, "Please use your Stevens email (it ends in @stevens.edu)."];
+      if (iMajor.value.trim().length < 2) return [iMajor, "Please enter your major."];
+      if (!f) return [iResume, "Please attach your resume (PDF or Word)."];
+      if (!/\.(pdf|docx?)$/i.test(f.name)) return [iResume, "Your resume needs to be a PDF or Word file."];
+      if (f.size > MAX) return [iResume, "That file is over 10 MB. Please attach a smaller one."];
+      return null;
+    }
+    function payload(extra) {
+      return readResume().then(resume => Object.assign({
+        action: "apply", role: j.Role || "", business: j.Business || "", employer: (employerEmail || "").toLowerCase(),
+        name: iName.value.trim(), year: iYear.value, email: iEmail.value.trim().toLowerCase(), major: iMajor.value.trim(),
+        phone: iPhone.value.trim(), availability: iAvail.value.trim(), about: iAbout.value.trim(), website: iTrap.value, resume: resume
+      }, extra));
+    }
+    function sendCode() {
+      const email = iEmail.value.trim().toLowerCase();
+      setBusy(true, "Sending code…");
+      return post({ action: "sendCode", email: email }).then(r => {
+        setBusy(false);
+        if (!r.ok) { say(r.error || "We couldn't send the code. Please try again.", true); return; }
+        sentTo = email;
+        codeNote.textContent = "We sent a 6-digit code to " + email + ". It can take a minute. Check your junk folder too.";
+        showStep("code");
+      }).catch(() => { setBusy(false); netFail(); });
+    }
+    function succeed(r) {
+      const mine = { name: iName.value.trim(), year: iYear.value, email: iEmail.value.trim().toLowerCase(), major: iMajor.value.trim(), phone: iPhone.value.trim(), avail: iAvail.value.trim() };
+      saveProf(Object.assign({}, mine, { token: r.token || "" }));
+      saveMe(Object.assign(loadMe(), mine));                 // so the email form is pre-filled too
+      // also add it to the team's existing Applications log, marked "Automatic" (only after it was really sent)
+      logApplication(j, employerEmail || "", { name: mine.name, email: mine.email, year: mine.year, major: mine.major, phone: mine.phone,
+        avail: mine.avail, about: iAbout.value.trim() }, "Automatic (sent)");
+      doneSub.textContent = (j.Business || "The business") + " got your application and resume.";
+      form.hidden = true; done.hidden = false;
+      const alt = apply.querySelector(".alt-mail"); if (alt) alt.hidden = true;
+      done.scrollIntoView && done.scrollIntoView({ block: "nearest" });
+    }
+    function submitApplication(code) {
+      const email = iEmail.value.trim().toLowerCase();
+      const token = prof.email === email ? (prof.token || "") : "";
+      setBusy(true, "Sending…");
+      return payload(code ? { code: code } : { token: token }).then(p => post(p)).then(r => {
+        setBusy(false);
+        if (r.ok) { succeed(r); return; }
+        if (r.needCode) { prof.token = ""; return sendCode(); }
+        if (r.token) prof.token = r.token;
+        say(r.error || "Something went wrong. Please try again.", true);
+        if (step === "code" && /code/i.test(r.error || "")) iCode.focus();
+      }).catch(e => { setBusy(false); if (e && e.message === "read") say("We couldn't read that file. Please choose it again.", true); else netFail(); });
+    }
+    form.addEventListener("submit", ev => {
+      ev.preventDefault(); if (busy) return;
+      if (step === "code") {
+        const c = iCode.value.replace(/\D/g, "");
+        if (c.length !== 6) { say("Please type the 6-digit code from your email.", true); iCode.focus(); return; }
+        submitApplication(c); return;
+      }
+      const bad = validate();
+      if (bad) { say(bad[1], true); bad[0].focus(); return; }
+      submitApplication("");
+    });
+    resend.addEventListener("click", () => { if (!busy) sendCode(); });
+    ["input", "change"].forEach(ev => form.addEventListener(ev, () => { if (msg.classList.contains("err")) say(""); }));
+    return wrap;
+  }
+
   // ---------- [NEW] The email the student sends ----------
   // EDIT THE WORDING HERE. Each line below becomes a line in the email.
   const isPhone = () => /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
@@ -886,7 +1109,8 @@ button.linklike.back{display:inline-block;margin-bottom:10px;text-decoration:non
     setChildren(box, []);
     box.appendChild(el("h3", "", "Sheet check"));
     const add = t => box.appendChild(el("p", "meta", t));
-    add("Site files version: 23 (if this is not 23, some files on GitHub are old)");
+    add("Site files version: 30 (if this is not 30, some files on GitHub are old)");
+    add("Automatic apply: " + (!cfg.applyUrl ? "OFF (no applyUrl in config.js)" : autoApply ? (cfg.applyLive === false ? "TEST MODE (only you see it, because of ?autoapply=1)" : "ON for everyone") : "READY but hidden from students. Add ?autoapply=1 to the address to test it, or set applyLive: true to turn it on for everyone."));
     const url = cfg.sheetCsvUrl || "";
     add("Sheet link ends in: ..." + url.replace(/\?.*$/, "").slice(-10) + " (tab " + ((url.match(/gid=(\d+)/) || [])[1] || "unknown") + ")");
     if (errMsg) { add("Could not read the sheet: " + errMsg); return; }

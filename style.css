@@ -210,3 +210,35 @@ section[id] { scroll-margin-top: 84px; }
 .shift-list .sd { min-width: 0; }
 .shift-list .st .t { display: block; }
 @media (max-width: 520px) { .shift-list li.shift { grid-template-columns: 1fr; gap: 2px; } }
+
+/* ===== [NEW] Automatic apply form ===== */
+[hidden] { display: none !important; }
+.apply-flow .btn.full { width: 100%; }
+.apply-note.first { margin-top: 0; }
+.auto-form { margin-top: 14px; }
+.af-field { margin: 12px 0 0; min-width: 0; }
+.af-field label { display: block; font-weight: 700; font-size: 1rem; margin-bottom: 4px; }
+.af-field .opt { font-weight: 400; color: var(--muted); }
+.af-two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.af-field input, .af-field select, .af-field textarea, .code-input {
+  width: 100%; font: inherit; font-size: 1.05rem; padding: 10px 14px; border: 1px solid var(--line);
+  border-radius: 12px; background: #fff; color: var(--ink);
+}
+.af-field input[type="file"] { border: 2px dashed var(--coral); background: #FBF2EF; padding: 12px; font-size: 1rem; }
+.af-field textarea { resize: vertical; }
+.af-trap { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+.af-code h4, .apply-done h4 { margin: 0 0 6px; font-size: 1.35rem; }
+.code-input { text-align: center; letter-spacing: .5em; font-size: 1.6rem; margin-top: 6px; }
+.apply-msg { min-height: 1.4em; margin: 12px 0 0; font-size: 1rem; color: var(--muted); }
+.apply-msg.err { color: #9B3A2A; font-weight: 700; }
+.af-actions { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; margin-top: 6px; }
+.af-actions .btn { flex: 1 1 220px; }
+.af-actions .btn[disabled] { opacity: .6; cursor: default; }
+.cancel { font-size: 1rem; }
+.apply-done { text-align: center; padding: 6px 0 2px; }
+.check-badge { width: 60px; height: 60px; border-radius: 50%; background: #fff; color: #4d6a3c; font-size: 1.9rem; display: grid; place-items: center; margin: 4px auto 10px; }
+.next-steps { list-style: none; padding: 0; margin: 14px 0 6px; text-align: left; }
+.next-steps li { padding: 8px 0; border-top: 1px solid rgba(45,38,35,.12); font-size: 1.05rem; }
+.alt-mail { margin-top: 14px; font-size: 1rem; }
+.alt-mail > summary { cursor: pointer; font-weight: 700; color: var(--coral-dark); padding: 6px 0; }
+@media (max-width: 480px) { .af-two { grid-template-columns: 1fr; gap: 0; } }

@@ -10,8 +10,17 @@ window.ATB_CONFIG = {
   // 2. Where the "Email us" buttons send messages (shared team inbox).
   contactEmail: "aroundtheblockhoboken@gmail.com",
 
+  // 3. Your existing script that logs applications sent through the Outlook email.
   applyLogUrl: "https://script.google.com/macros/s/AKfycbwS54tTzTein9D5G04Gqwb2DhwppSN6taAtyTkSiuQgks1MG1at6dxW3n8R8g2EmpmmgQ/exec",
 
-  // 3. Only shown if sheetCsvUrl is ever left empty.
+  // 4. NEW: automatic applications. Paste the "Web app URL" from the new Google script here
+  //    (see README). While this is empty, students use the Outlook email as before.
+  applyUrl: "https://script.google.com/macros/s/AKfycbwx8OBbpENMLuShhn4qA5ZkGwZKVziEq07t2yAOkbEO8-gs5LMo1sJwcJ8BaxFOoj6w/exec",
+
+  //    Who sees the new form? false = only your team, by adding ?autoapply=1 to the site address
+  //    (students still get the Outlook email). Change to true when you are ready to turn it on for everyone.
+  applyLive: false,
+
+  // 5. Only shown if sheetCsvUrl is ever left empty.
   exampleJobs: []
 };
