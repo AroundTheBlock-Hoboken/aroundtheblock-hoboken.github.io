@@ -604,7 +604,7 @@
     // signed in to a personal address, so it's only offered as a small backup link.)
     const mainVia = byText ? "Text" : phoneDevice ? "Outlook" : "Outlook web";
     let via = mainVia;
-    const go = el("button", "btn", byText ? (canText() ? "Continue in Messages" : "Continue") : phoneDevice ? "Continue in Outlook app" : "Apply"); go.type = "submit";
+    const go = el("button", "btn", byText ? (canText() ? "Continue in Messages" : "Continue") : phoneDevice ? "Continue in Outlook app" : "Continue in Stevens Outlook"); go.type = "submit";
     go.addEventListener("click", () => { via = mainVia; });
     f.appendChild(go);
     const alt = el("p", "apply-note other-mail", "Or continue with ");
@@ -791,7 +791,8 @@ button.linklike.back{display:inline-block;margin-bottom:10px;text-decoration:non
     return {
       // [NEW] login_hint tells Microsoft which account to use (the student's @stevens.edu address), so people
       // signed in to several Microsoft accounts don't get the "Pick an account" screen that drops the email.
-      outlook: "https://outlook.cloud.microsoft/mail/deeplink/compose?to=" + encodeURIComponent(to) + cc + "&" + q + "&body=" + body +
+      // [CHANGED] Outlook on the web ignores cc=, so the Around the Block address goes in the To line instead.
+      outlook: "https://outlook.cloud.microsoft/mail/deeplink/compose?to=" + encodeURIComponent(to) + (cc ? "," + encodeURIComponent(ccAddr) : "") + "&" + q + "&body=" + body +
         (info.email ? "&login_hint=" + encodeURIComponent(info.email) : ""),
       app: "ms-outlook://compose?to=" + encodeURIComponent(to) + cc + "&" + q + "&body=" + body,   // Outlook phone app
       gmail: "https://mail.google.com/mail/?view=cm&fs=1&to=" + encodeURIComponent(to) + cc + "&su=" + encodeURIComponent(subject) + "&body=" + body,
