@@ -15,7 +15,7 @@ window.ATB_CONFIG = {
 
   // 4. NEW: automatic applications. Paste the "Web app URL" from the new Google script here
   //    (see README). While this is empty, students use the Outlook email as before.
-  applyUrl: "https://script.google.com/macros/s/AKfycbwx8OBbpENMLuShhn4qA5ZkGwZKVziEq07t2yAOkbEO8-gs5LMo1sJwcJ8BaxFOoj6w/exec",
+  applyUrl: "https://script.google.com/macros/s/AKfycbwNZL5M8gScKh1vxtVRg_ZEuDJAIDR7JRlJO8eKb5mbYQqtoAfb6bN5XI9Qsv7Vn92j/exec",
 
   //    Who sees the new form? false = only your team, by adding ?autoapply=1 to the site address
   //    (students still get the Outlook email). Change to true when you are ready to turn it on for everyone.
