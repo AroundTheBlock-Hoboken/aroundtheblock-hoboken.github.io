@@ -789,7 +789,10 @@ button.linklike.back{display:inline-block;margin-bottom:10px;text-decoration:non
     const ccAddr = (typeof cfg.applyCc === "string" ? cfg.applyCc : (cfg.contactEmail || "aroundtheblockhoboken@gmail.com")).trim();
     const cc = ccAddr && ccAddr.toLowerCase() !== String(to).toLowerCase() ? "&cc=" + encodeURIComponent(ccAddr) : "";
     return {
-      outlook: "https://outlook.cloud.microsoft/mail/deeplink/compose?to=" + encodeURIComponent(to) + cc + "&" + q + "&body=" + body,
+      // [NEW] login_hint tells Microsoft which account to use (the student's @stevens.edu address), so people
+      // signed in to several Microsoft accounts don't get the "Pick an account" screen that drops the email.
+      outlook: "https://outlook.cloud.microsoft/mail/deeplink/compose?to=" + encodeURIComponent(to) + cc + "&" + q + "&body=" + body +
+        (info.email ? "&login_hint=" + encodeURIComponent(info.email) : ""),
       app: "ms-outlook://compose?to=" + encodeURIComponent(to) + cc + "&" + q + "&body=" + body,   // Outlook phone app
       gmail: "https://mail.google.com/mail/?view=cm&fs=1&to=" + encodeURIComponent(to) + cc + "&su=" + encodeURIComponent(subject) + "&body=" + body,
       mail: "mailto:" + to + "?" + q + cc + "&body=" + body,                                       // the device's own mail app
