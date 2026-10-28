@@ -615,7 +615,7 @@
     alt.appendChild(document.createTextNode("."));
     f.appendChild(alt);
     f.appendChild(el("p", "apply-note small-print",
-      "Your details and the job you applied to are shared with the Around the Block team so we can follow up with you and the business."));
+      "Your details and the job you applied to are shared with the Around the Block team so we can follow up with you and the business. Your email will CC the Around the Block team."));
 
     f.addEventListener("submit", e => {
       e.preventDefault();
@@ -773,12 +773,16 @@ button.linklike.back{display:inline-block;margin-bottom:10px;text-decoration:non
     ]);
     const q = "subject=" + encodeURIComponent(subject);
     const body = encodeURIComponent(lines.join("\n"));
+    // [NEW] CC the Around the Block inbox, so we get a copy of every application a student actually sends.
+    // Set applyCc in config.js to change the address (or applyCc: "" to turn it off). Defaults to contactEmail.
+    const ccAddr = (typeof cfg.applyCc === "string" ? cfg.applyCc : (cfg.contactEmail || "aroundtheblockhoboken@gmail.com")).trim();
+    const cc = ccAddr && ccAddr.toLowerCase() !== String(to).toLowerCase() ? "&cc=" + encodeURIComponent(ccAddr) : "";
     return {
-      outlook: "https://outlook.office.com/mail/deeplink/compose?to=" + encodeURIComponent(to) + "&" + q + "&body=" + body,
-      app: "ms-outlook://compose?to=" + encodeURIComponent(to) + "&" + q + "&body=" + body,   // Outlook phone app
-      gmail: "https://mail.google.com/mail/?view=cm&fs=1&to=" + encodeURIComponent(to) + "&su=" + encodeURIComponent(subject) + "&body=" + body,
-      mail: "mailto:" + to + "?" + q + "&body=" + body,                                       // the device's own mail app
-      text: "To: " + to + "\nSubject: " + subject + "\n\n" + lines.join("\n")               // shown and copied
+      outlook: "https://outlook.office.com/mail/deeplink/compose?to=" + encodeURIComponent(to) + cc + "&" + q + "&body=" + body,
+      app: "ms-outlook://compose?to=" + encodeURIComponent(to) + cc + "&" + q + "&body=" + body,   // Outlook phone app
+      gmail: "https://mail.google.com/mail/?view=cm&fs=1&to=" + encodeURIComponent(to) + cc + "&su=" + encodeURIComponent(subject) + "&body=" + body,
+      mail: "mailto:" + to + "?" + q + cc + "&body=" + body,                                       // the device's own mail app
+      text: "To: " + to + (ccAddr && cc ? "\nCc: " + ccAddr : "") + "\nSubject: " + subject + "\n\n" + lines.join("\n")   // shown and copied
     };
   }
 
