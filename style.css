@@ -242,3 +242,12 @@ section[id] { scroll-margin-top: 84px; }
 .alt-mail { margin-top: 14px; font-size: 1rem; }
 .alt-mail > summary { cursor: pointer; font-weight: 700; color: var(--coral-dark); padding: 6px 0; }
 @media (max-width: 480px) { .af-two { grid-template-columns: 1fr; gap: 0; } }
+
+/* Businesses: what you receive (matches How it works) */
+.biz-sub { font-size: 1.35rem; margin: 22px 0 12px; }
+.biz-steps { list-style: none; counter-reset: b; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; text-align: left; }
+.biz-steps li { counter-increment: b; background: #fff; border-radius: var(--radius); padding: 16px 18px; }
+.biz-steps li::before { content: counter(b); display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--coral); color: var(--ink); font-weight: 700; font-size: 1rem; margin-bottom: 6px; }
+.biz-steps strong { display: block; font-size: 1.2rem; line-height: 1.25; }
+.biz-steps span { display: block; color: var(--muted); font-size: 1rem; margin-top: 2px; }
+@media (max-width: 640px) { .biz-steps { grid-template-columns: 1fr; } }
