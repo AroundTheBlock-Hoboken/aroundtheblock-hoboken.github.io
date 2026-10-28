@@ -68,7 +68,7 @@
       a.addEventListener("click", e => {
         e.preventDefault();
         if (phone) { location.href = "ms-outlook://compose?" + q; }
-        else { window.open("https://outlook.office.com/mail/deeplink/compose?" + q, "_blank", "noopener"); }
+        else { window.open("https://outlook.cloud.microsoft/mail/deeplink/compose?" + q, "_blank", "noopener"); }
       });
     });
     document.querySelectorAll(".contact-addr").forEach(n => { n.textContent = to; if (n.tagName === "A") n.href = "mailto:" + to; });
@@ -599,6 +599,7 @@
      field("When can you work?", avail, true), field("About you", about, true), trapBox].forEach(n => f.appendChild(n));
 
     // [CHANGED] Main button: the Outlook app on phones, Stevens Outlook on the web on laptops.
+    // Uses Outlook's new web address (outlook.cloud.microsoft); the old one lost the email after sign-in.
     // Both always send from the student's @stevens.edu account. (A laptop's default mail app might be
     // signed in to a personal address, so it's only offered as a small backup link.)
     const mainVia = byText ? "Text" : phoneDevice ? "Outlook" : "Outlook web";
@@ -788,7 +789,7 @@ button.linklike.back{display:inline-block;margin-bottom:10px;text-decoration:non
     const ccAddr = (typeof cfg.applyCc === "string" ? cfg.applyCc : (cfg.contactEmail || "aroundtheblockhoboken@gmail.com")).trim();
     const cc = ccAddr && ccAddr.toLowerCase() !== String(to).toLowerCase() ? "&cc=" + encodeURIComponent(ccAddr) : "";
     return {
-      outlook: "https://outlook.office.com/mail/deeplink/compose?to=" + encodeURIComponent(to) + cc + "&" + q + "&body=" + body,
+      outlook: "https://outlook.cloud.microsoft/mail/deeplink/compose?to=" + encodeURIComponent(to) + cc + "&" + q + "&body=" + body,
       app: "ms-outlook://compose?to=" + encodeURIComponent(to) + cc + "&" + q + "&body=" + body,   // Outlook phone app
       gmail: "https://mail.google.com/mail/?view=cm&fs=1&to=" + encodeURIComponent(to) + cc + "&su=" + encodeURIComponent(subject) + "&body=" + body,
       mail: "mailto:" + to + "?" + q + cc + "&body=" + body,                                       // the device's own mail app
