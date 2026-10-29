@@ -1076,9 +1076,11 @@ button.linklike.back{display:inline-block;margin-bottom:10px;text-decoration:non
       (!chipOn.saved || saved.indexOf(j._id) >= 0) &&
       (!q || [j.Role, j.Business, j.Location, j.Type, j.Hours, j.Description].join(" ").toLowerCase().includes(q)));
     // [NEW] Sorting
-    shown.sort(s === "close"
-      ? (a, b) => walkMinutes(a.Walk) - walkMinutes(b.Walk)
-      : (a, b) => (postedTime(b) - postedTime(a)) || (jobs.indexOf(b) - jobs.indexOf(a)));   // newest date first; same day: the row added last goes on top
+    const byNewest = (a, b) => (postedTime(b) - postedTime(a)) || (jobs.indexOf(b) - jobs.indexOf(a));   // newest date first; same day: the row added last goes on top
+    const endsAt = j => expiryTime(j) || Infinity;                                                      // jobs with no end date go last
+    shown.sort(s === "close" ? (a, b) => walkMinutes(a.Walk) - walkMinutes(b.Walk)
+      : s === "new" ? byNewest
+      : (a, b) => (endsAt(a) === endsAt(b) ? 0 : endsAt(a) < endsAt(b) ? -1 : 1) || byNewest(a, b));      // soonest end date first (default)
 
     setChildren(listEl, shown.map(card));
     if (!shown.length) {
