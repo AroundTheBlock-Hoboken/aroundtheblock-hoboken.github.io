@@ -338,7 +338,9 @@
       if (marks[0].i > 0) items.push({ text: line.slice(0, marks[0].i).trim() });
       marks.forEach((mk, k) => {
         const rest = line.slice(mk.end, k + 1 < marks.length ? marks[k + 1].i : line.length).trim().replace(/^[-–:]\s*/, "");
-        const times = rest.split(/\s*(?:,|;|\band or\b|\band\b|\bor\b)\s*/i).map(t => t.trim()).filter(Boolean);
+        // "3:00 or 4:00 PM – 7:30 PM" is ONE shift (start at 3 or 4), so don't split on that "or"
+        const keep = rest.replace(/(\b\d{1,2}(?::\d{2})?)\s+(?:or|and)\s+(?=\d{1,2}(?::\d{2})?\s*[AP]M)/gi, "$1\u0001");
+        const times = keep.split(/\s*(?:,|;|\band or\b|\band\b|\bor\b)\s*/i).map(t => t.replace(/\u0001/g, " or ").trim()).filter(Boolean);
         items.push(times.length ? { days: mk.days, times } : { text: mk.days });
       });
     });
@@ -1111,7 +1113,7 @@ button.linklike.back{display:inline-block;margin-bottom:10px;text-decoration:non
     setChildren(box, []);
     box.appendChild(el("h3", "", "Sheet check"));
     const add = t => box.appendChild(el("p", "meta", t));
-    add("Site files version: 32 (if this is not 32, some files on GitHub are old)");
+    add("Site files version: 33 (if this is not 33, some files on GitHub are old)");
     add("Automatic apply: " + (!cfg.applyUrl ? "OFF (no applyUrl in config.js)" : autoApply ? (cfg.applyLive === false ? "TEST MODE (only you see it, because of ?autoapply=1)" : "ON for everyone") : "READY but hidden from students. Add ?autoapply=1 to the address to test it, or set applyLive: true to turn it on for everyone."));
     const url = cfg.sheetCsvUrl || "";
     add("Sheet link ends in: ..." + url.replace(/\?.*$/, "").slice(-10) + " (tab " + ((url.match(/gid=(\d+)/) || [])[1] || "unknown") + ")");
