@@ -1078,7 +1078,7 @@ button.linklike.back{display:inline-block;margin-bottom:10px;text-decoration:non
     // [NEW] Sorting
     shown.sort(s === "close"
       ? (a, b) => walkMinutes(a.Walk) - walkMinutes(b.Walk)
-      : (a, b) => postedTime(b) - postedTime(a));
+      : (a, b) => (postedTime(b) - postedTime(a)) || (jobs.indexOf(b) - jobs.indexOf(a)));   // newest date first; same day: the row added last goes on top
 
     setChildren(listEl, shown.map(card));
     if (!shown.length) {
@@ -1109,7 +1109,7 @@ button.linklike.back{display:inline-block;margin-bottom:10px;text-decoration:non
     setChildren(box, []);
     box.appendChild(el("h3", "", "Sheet check"));
     const add = t => box.appendChild(el("p", "meta", t));
-    add("Site files version: 31 (if this is not 31, some files on GitHub are old)");
+    add("Site files version: 32 (if this is not 32, some files on GitHub are old)");
     add("Automatic apply: " + (!cfg.applyUrl ? "OFF (no applyUrl in config.js)" : autoApply ? (cfg.applyLive === false ? "TEST MODE (only you see it, because of ?autoapply=1)" : "ON for everyone") : "READY but hidden from students. Add ?autoapply=1 to the address to test it, or set applyLive: true to turn it on for everyone."));
     const url = cfg.sheetCsvUrl || "";
     add("Sheet link ends in: ..." + url.replace(/\?.*$/, "").slice(-10) + " (tab " + ((url.match(/gid=(\d+)/) || [])[1] || "unknown") + ")");
