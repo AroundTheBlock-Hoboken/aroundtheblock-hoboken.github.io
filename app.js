@@ -554,15 +554,17 @@
           "Takes 30 seconds. We write the email for you, then you attach your resume and hit send."));
       }
     } else if (textNumber(raw)) {
-      // [NEW] Phone number in the sheet -> same short form, then a ready-made iMessage/text to the employer
-      const num = textNumber(raw);
-      apply.appendChild(el("h3", "", "Stevens students only"));
-      const go = el("button", "btn", "Apply"); go.type = "button";
-      go.setAttribute("aria-label", "Apply for " + (j.Role || "this job") + " at " + (j.Business || "this business"));
-      go.addEventListener("click", () => renderApplyForm(j, num, "text"));
-      apply.appendChild(go);
-      apply.appendChild(el("p", "apply-note",
-        "Takes 30 seconds. We write the text message for you, then you just hit send."));
+      // Phone number only (no email, no link): just call or text them. No form needed.
+      const num = textNumber(raw), pretty = prettyNumber(num);
+      const canText = !/\bcall\b/i.test(raw) || /\btext\b/i.test(raw), canCall = !/\btext\b/i.test(raw) || /\bcall\b/i.test(raw);
+      apply.appendChild(el("h3", "", canCall && canText ? "Call or text to apply" : canText ? "Text to apply" : "Call to apply"));
+      const note = raw.replace(/\s+/g, " ").trim();
+      if (/[A-Za-z]/.test(note)) apply.appendChild(el("p", "apply-note first", note));
+      const btns = el("div", "d-actions contact-btns");
+      if (canCall) { const c = el("a", "btn", "Call " + pretty); c.href = "tel:" + num; btns.appendChild(c); }
+      if (canText) { const t = el("a", canCall ? "btn ghost" : "btn", "Text " + pretty); t.href = "sms:" + num; btns.appendChild(t); }
+      apply.appendChild(btns);
+      apply.appendChild(el("p", "apply-note", "Say you're a Stevens student and found the job on Around the Block."));
     } else if (applyLink(raw)) {
       const l = applyLink(raw), a = el("a", "btn", l.label); a.href = l.href; apply.appendChild(a);
     } else if (raw) {
@@ -1113,7 +1115,7 @@ button.linklike.back{display:inline-block;margin-bottom:10px;text-decoration:non
     setChildren(box, []);
     box.appendChild(el("h3", "", "Sheet check"));
     const add = t => box.appendChild(el("p", "meta", t));
-    add("Site files version: 33 (if this is not 33, some files on GitHub are old)");
+    add("Site files version: 34 (if this is not 34, some files on GitHub are old)");
     add("Automatic apply: " + (!cfg.applyUrl ? "OFF (no applyUrl in config.js)" : autoApply ? (cfg.applyLive === false ? "TEST MODE (only you see it, because of ?autoapply=1)" : "ON for everyone") : "READY but hidden from students. Add ?autoapply=1 to the address to test it, or set applyLive: true to turn it on for everyone."));
     const url = cfg.sheetCsvUrl || "";
     add("Sheet link ends in: ..." + url.replace(/\?.*$/, "").slice(-10) + " (tab " + ((url.match(/gid=(\d+)/) || [])[1] || "unknown") + ")");
