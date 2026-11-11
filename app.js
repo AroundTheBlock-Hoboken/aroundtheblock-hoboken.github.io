@@ -10,7 +10,7 @@
   const cfg = window.ATB_CONFIG || {};
   // [NEW] Automatic apply is on for everyone when applyLive is not false. While applyLive is false,
   // only people who add ?autoapply=1 to the web address (your team, for testing) see it.
-  const autoApply = !!cfg.applyUrl && (cfg.applyLive !== false || /[?&]autoapply=1/.test(location.search));
+  const autoApply = !!cfg.applyUrl;   // applyLive and ?autoapply=1 no longer matter: there is no manual apply to fall back to
 
   // [NEW] When automatic apply is on, the "How it works" step describes it.
   if (autoApply) {
@@ -536,22 +536,13 @@
       apply.appendChild(a);
     } else if (email) {
       apply.appendChild(el("h3", "", "Stevens students only"));
-      if (autoApply) {
-        // [NEW] Automatic apply: short form + resume upload, sent for the student (see buildApplyForm).
+      if (cfg.applyUrl) {
+        // Automatic apply is the only way to apply by email: short form + resume upload, sent for the student
+        // (see buildApplyForm). The old "write the email yourself" option was removed on purpose, so every
+        // application arrives in the same format, with the resume attached and the take-down link included.
         apply.appendChild(buildApplyForm(j, apply, email));
-        const alt = el("details", "alt-mail"); alt.appendChild(el("summary", "", "Prefer to email it yourself?"));
-        alt.appendChild(el("p", "apply-note first", "Use the same short form, then we open the email in Stevens Outlook (or Mail or Gmail) for you to send."));
-        const mb = el("button", "btn ghost small", "Write the email instead"); mb.type = "button";
-        mb.addEventListener("click", () => renderApplyForm(j, email));
-        alt.appendChild(mb); apply.appendChild(alt);
       } else {
-        // Original flow: short form, then a ready-made email (kept as is)
-        const go = el("button", "btn", "Apply"); go.type = "button";
-        go.setAttribute("aria-label", "Apply for " + (j.Role || "this job") + " at " + (j.Business || "this business"));
-        go.addEventListener("click", () => renderApplyForm(j, email));
-        apply.appendChild(go);
-        apply.appendChild(el("p", "apply-note",
-          "Takes 30 seconds. We write the email for you, then you attach your resume and hit send."));
+        apply.appendChild(el("p", "apply-note first", "Applications are paused for a moment. Email " + (cfg.contactEmail || "us") + " and we'll help."));
       }
     } else if (textNumber(raw)) {
       // Phone number only (no email, no link): just call or text them. No form needed.
@@ -897,7 +888,7 @@ button.linklike.back{display:inline-block;margin-bottom:10px;text-decoration:non
       const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 90000));
       return Promise.race([call, timeout]);
     }
-    const netFail = () => say("We couldn't reach the server. Check your connection and try again, or use \"Prefer to email it yourself?\" below.", true);
+    const netFail = () => say("We couldn't reach the server. Check your connection and try again. Still stuck? Email " + (cfg.contactEmail || "us") + " and we'll help.", true);
     function readResume() {
       return new Promise((res, rej) => {
         const f = iResume.files && iResume.files[0]; if (!f) return rej(new Error("none"));
