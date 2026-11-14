@@ -4,7 +4,7 @@
    Small improvements are marked [NEW].
    ===================================================================== */
 :root {
-  --bg: #F9F6F5; --card: #FFFFFF; --ink: #2D2623; --muted: #6B625E;
+  --bg: #E6F0F8; --card: #FFFFFF; --ink: #2D2623; --muted: #6B625E;
   --coral: #DE9585; --coral-dark: #A9503F;
   --sage: #8FA77E; --sage-light: #E7EEE2; --line: #E4DCD8; --radius: 18px;
 }
